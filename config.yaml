@@ -3,4 +3,3 @@ ssh:
   password: "Password34545"     # Şifre kullanılacaksa (tırnak içinde önerilir)
   # key_path: ~/.ssh/id_rsa     # SSH anahtarı kullanılacaksa bu satırın başındaki '#' kaldırılmalı
   port: 22                      # Opsiyonel (varsayılan: 22)
-  timeout: 5
