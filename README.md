@@ -13,6 +13,5 @@ Neutron/
 # Requirements
 - Python3
 - SSH
-- Winrm
 
 
