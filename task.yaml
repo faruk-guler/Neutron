@@ -1,5 +1,4 @@
 commands:
-  - type: ssh
-    command: ip a
-  - type: ssh
-    command: lsblk -p
+  - "ls -la /home"
+  - "df -h"
+  - "sudo systemctl status nginx"
