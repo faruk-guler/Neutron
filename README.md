@@ -2,6 +2,10 @@
 <img src="https://farukguler.com/assets/img/neutron.png" alt="alt text" width="300" height="330">
 
 It is a lightweight, fast, and elegant automation tool.
+## Usage:
+> ./main.py
+> 
+> ./main.py task.yaml
 ~~~sh
 Neutron/
 ├── config.yaml # Server information (IP/DNS, port, credentials)
