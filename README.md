@@ -1,11 +1,11 @@
 # Neutron -fast automation tool
 It is a lightweight, fast, and elegant automation tool.
 ~~~sh
-project/
-├── config.yaml      # Sunucu bilgileri (IP/DNS, port, kimlik bilgileri)
-├── main.py          # Ana script (komutları çalıştırır)
-├── source.yaml      # Toplu çalıştırılacak komutlar
-├── task.yaml        # İsteğe bağlı görev tanımları
+Neutron/
+├── config.yaml # Server information (IP/DNS, port, credentials)
+├── main.py # Main script (Python runs commands)
+├── source.yaml # source list(IP/DNS, servers)
+├── task.yaml # Optional commands, scripts)
 ~~~
 
 # Requirements
