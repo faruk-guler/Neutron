@@ -12,19 +12,27 @@ class LinuxSSHTool:
         self.servers = self.load_servers()
 
     def load_config(self) -> Dict:
+        """Load SSH configuration from config.yaml."""
         try:
             with open('config.yaml') as f:
                 config = yaml.safe_load(f)
 
-            if not config.get('ssh') or not config['ssh'].get('user'):
-                raise ValueError("Invalid config.yaml: SSH user not defined")
+            ssh_config = config.get('ssh')
+            if not ssh_config or not ssh_config.get('user'):
+                raise ValueError("Invalid config.yaml: SSH user is not defined.")
 
-            return config['ssh']
+            # Prevent using both key_path and password
+            if ssh_config.get('key_path') and ssh_config.get('password'):
+                raise ValueError("Please provide either a key_path or password, not both.")
+
+            return ssh_config
+
         except Exception as e:
-            print(f"[ERROR] Config loading failed: {e}")
+            print(f"[ERROR] Failed to load config: {e}")
             sys.exit(1)
 
     def load_servers(self) -> List[Dict]:
+        """Load the list of servers from source.yaml."""
         try:
             with open('source.yaml') as f:
                 servers = yaml.safe_load(f).get('servers', [])
@@ -37,19 +45,20 @@ class LinuxSSHTool:
                     s['port'] = s.get('port', self.config.get('port', 22))
                     normalized.append(s)
             return normalized
+
         except Exception as e:
-            print(f"[ERROR] Server list loading failed: {e}")
+            print(f"[ERROR] Failed to load server list: {e}")
             sys.exit(1)
 
     def run_command(self, host: str, port: int, command: str):
+        """Establish SSH connection and run a command on a remote host."""
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
-            print(f"\n🔹 {host}:{port}")
+            print(f"\n🔹 Connecting to {host}:{port}")
             print(f"   $ {command}")
 
-            # Bağlantı parametrelerini hazırla
             connect_params = {
                 'hostname': host,
                 'port': port,
@@ -57,10 +66,9 @@ class LinuxSSHTool:
                 'timeout': self.config.get('timeout', 10)
             }
 
-            # Eğer key_path varsa bağlantı parametrelerine ekle
+            # Use key or password for authentication
             if self.config.get('key_path'):
                 connect_params['key_filename'] = os.path.expanduser(self.config['key_path'])
-            # Eğer password varsa bağlantı parametrelerine ekle
             elif self.config.get('password'):
                 connect_params['password'] = self.config['password']
 
@@ -81,6 +89,7 @@ class LinuxSSHTool:
             ssh.close()
 
     def execute_task(self, task_file: str):
+        """Execute a list of commands from a YAML file on all servers."""
         try:
             with open(task_file) as f:
                 commands = yaml.safe_load(f).get('commands', [])
@@ -93,6 +102,7 @@ class LinuxSSHTool:
             print(f"[ERROR] Task execution failed: {e}")
 
     def interactive_mode(self):
+        """Start interactive mode for manual SSH command input."""
         print("🐧 Linux SSH Manager (Type 'exit' to quit)")
         while True:
             try:
