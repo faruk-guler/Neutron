@@ -1,7 +1,7 @@
 ssh:
   user: root
 # password: YourPassword
-  key_path: ~/.ssh/id_rsa #password or ssh-key
+  key_path: ~/.ssh/id_rsa #password or ssh-key path
   port: 22
   
 winrm:
