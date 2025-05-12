@@ -8,8 +8,8 @@ It is a lightweight, fast, and Effective automation tool.
 > ./main.py task.yaml
 ~~~sh
 Neutron Files/
-├── config.yaml # Server information (IP/DNS, port, credentials)
-├── main.py     # Main script (Python runs commands)
+├── config.yaml # Server information (port, credentials)
+├── main.py     # Main command (Python runs commands)
 ├── source.yaml # source list(IP/DNS, servers)
 ├── task.yaml   # Optional commands, scripts)
 
