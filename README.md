@@ -1,5 +1,5 @@
 # Neutron -Effective automation tool for Linux
-<img src="https://github.com/faruk-guler/Neutron/blob/main/neutron.png" alt="alt text" width="300" height="330">
+<img src="https://farukguler.com/assets/img/neutron.png" alt="alt text" width="300" height="330">
 
 It is a lightweight, fast, and elegant automation tool.
 ~~~sh
