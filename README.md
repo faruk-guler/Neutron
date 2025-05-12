@@ -1,7 +1,7 @@
 # Neutron -Effective automation tool for Linux
-It is a lightweight, fast, and elegant automation tool.
 <img src="https://github.com/faruk-guler/Neutron/blob/main/neutron.png" alt="alt text" width="300" height="330">
 
+It is a lightweight, fast, and elegant automation tool.
 ~~~sh
 Neutron/
 ├── config.yaml # Server information (IP/DNS, port, credentials)
