@@ -3,4 +3,3 @@ ssh:
   password: "Password34545"
   # key_path: ~/.ssh/id_rsa
   port: 22
-  timeout: 5
