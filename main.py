@@ -103,8 +103,8 @@ class LinuxSSHTool:
     def interactive_mode(self):
         """Start interactive mode for manual SSH command input."""
         print("#######################################################################")
-        print("🐧 Neutron -Lightweight automation tool for Linux (Type 'exit' to quit)")
         print("###                            NEUTRON                              ###")
+        print("### 🐧Lightweight automation tool for Linux (Type 'exit' to quit)   ###")
         print("###                     www.farukguler.com                          ###")
         print("#######################################################################")
         while True:
