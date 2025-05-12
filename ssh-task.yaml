@@ -1,3 +1,5 @@
 commands:
   - type: ssh
-    command: dpkg -l | grep nginx
+    command: ip a
+  - type: ssh
+    command: lsblk -p
