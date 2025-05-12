@@ -1,5 +1,5 @@
 ssh:
-  user: admin
+  user: root
   key_path: ~/.ssh/id_rsa #password or ssh-key
   port: 22
 winrm:
