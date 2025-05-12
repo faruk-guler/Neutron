@@ -7,8 +7,8 @@ It is a lightweight, fast, and elegant automation tool.
 ├── task.yaml        # İsteğe bağlı görev tanımları
 
 # Requirements
--Python3
--SSH
--Winrm
+- Python3
+- SSH
+- Winrm
 
 
