@@ -1,5 +1,5 @@
 ssh:
-  user: root
-# password: YourPassword
-  key_path: ~/.ssh/id_rsa #password or ssh-key path
-  port: 22
+  user: root                    # Zorunlu alan
+  password: "Password34545"     # Şifre kullanılacaksa (tırnak içinde önerilir)
+  # key_path: ~/.ssh/id_rsa     # SSH anahtarı kullanılacaksa bu satırın başındaki '#' kaldırılmalı
+  port: 22                      # Opsiyonel (varsayılan: 22)
