@@ -1,3 +1,0 @@
-commands:
-  - type: winrm
-    command: gpupdate /force
