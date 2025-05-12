@@ -7,7 +7,7 @@ It is a lightweight, fast, and elegant automation tool.
 > 
 > ./main.py task.yaml
 ~~~sh
-Neutron/
+Neutron Files/
 ├── config.yaml # Server information (IP/DNS, port, credentials)
 ├── main.py     # Main script (Python runs commands)
 ├── source.yaml # source list(IP/DNS, servers)
