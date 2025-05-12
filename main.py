@@ -25,7 +25,7 @@ class LinuxSSHTool:
 
     def load_servers(self) -> List[Dict]:
         try:
-            with open('servers.yaml') as f:
+            with open('source.yaml') as f:
                 servers = yaml.safe_load(f).get('servers', [])
                 
             normalized = []
@@ -104,3 +104,4 @@ if __name__ == "__main__":
         tool.execute_task(sys.argv[1])
     else:
         tool.interactive_mode()
+        
