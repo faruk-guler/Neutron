@@ -1,100 +1,106 @@
+#!/usr/bin/env python3
 import yaml
 import paramiko
 import os
-import argparse
 import sys
+from typing import List, Dict
 
-def load_yaml(path):
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f)
-    except FileNotFoundError:
-        print(f"[ERROR] Dosya bulunamadı: {path}")
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"[ERROR] YAML parse hatası {path}: {e}")
-        sys.exit(1)
+class LinuxSSHTool:
+    def __init__(self):
+        self.config = self.load_config()
+        self.servers = self.load_servers()
 
-def validate_config(config):
-    if 'ssh' not in config:
-        raise ValueError("config.yaml'da 'ssh' bölümü eksik.")
-
-    ssh = config['ssh']
-    if 'user' not in ssh:
-        raise ValueError("SSH kullanıcı adı eksik")
-    if not ('password' in ssh or 'key_path' in ssh):
-        raise ValueError("SSH şifre veya anahtar dosyası gereklidir")
-    if 'port' in ssh and not isinstance(ssh['port'], int):
-        raise ValueError("SSH portu sayı olmalıdır")
-
-def run_ssh_command(host, config, command):
-    print(f"\n[SSH] {host}")
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
-    connect_args = {
-        "hostname": host,
-        "port": config['ssh'].get('port', 22),
-        "username": config['ssh']['user'],
-        "timeout": 10
-    }
-
-    if 'password' in config['ssh']:
-        connect_args['password'] = config['ssh']['password']
-    elif 'key_path' in config['ssh']:
-        connect_args['key_filename'] = os.path.expanduser(config['ssh']['key_path'])
-
-    try:
-        ssh.connect(**connect_args)
-        stdin, stdout, stderr = ssh.exec_command(command)
-        output = stdout.read().decode().strip()
-        error = stderr.read().decode().strip()
-
-        if output:
-            print(f"[ÇIKTI] {output}")
-        if error:
-            print(f"[HATA] {error}")
-    except Exception as e:
-        print(f"[HATA] SSH bağlantı hatası: {e}")
-    finally:
-        ssh.close()
-
-def run_task_file(task_file, servers, config):
-    commands = load_yaml(task_file)['commands']
-    for host in servers:
-        for command in commands:
-            run_ssh_command(host['host'], config, command)
-
-def interactive_mode(servers, config):
-    print("[BİLGİ] Etkileşimli mod. Çıkmak için 'exit' yazın.")
-    while True:
+    def load_config(self) -> Dict:
         try:
-            cmd = input("\nKomut > ").strip()
-            if cmd.lower() == 'exit':
+            with open('config.yaml') as f:
+                config = yaml.safe_load(f)
+                
+            if not config.get('ssh') or not config['ssh'].get('user'):
+                raise ValueError("Invalid config.yaml: SSH user not defined")
+                
+            return config['ssh']
+        except Exception as e:
+            print(f"[ERROR] Config loading failed: {e}")
+            sys.exit(1)
+
+    def load_servers(self) -> List[Dict]:
+        try:
+            with open('servers.yaml') as f:
+                servers = yaml.safe_load(f).get('servers', [])
+                
+            normalized = []
+            for s in servers:
+                if isinstance(s, str):
+                    normalized.append({'host': s, 'port': self.config.get('port', 22)})
+                else:
+                    s['port'] = s.get('port', self.config.get('port', 22))
+                    normalized.append(s)
+            return normalized
+        except Exception as e:
+            print(f"[ERROR] Server list loading failed: {e}")
+            sys.exit(1)
+
+    def run_command(self, host: str, port: int, command: str):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        try:
+            print(f"\n🔹 {host}:{port}")
+            print(f"   $ {command}")
+            
+            ssh.connect(
+                hostname=host,
+                port=port,
+                username=self.config['user'],
+                key_filename=os.path.expanduser(self.config.get('key_path')),
+                timeout=self.config.get('timeout', 10)
+            )
+            
+            stdin, stdout, stderr = ssh.exec_command(command)
+            output = stdout.read().decode().strip()
+            error = stderr.read().decode().strip()
+            
+            if output:
+                print(f"   ✅ Output:\n{output}")
+            if error:
+                print(f"   ❗ Error:\n{error}")
+                
+        except Exception as e:
+            print(f"   ❌ Connection error: {str(e)}")
+        finally:
+            ssh.close()
+
+    def execute_task(self, task_file: str):
+        try:
+            with open(task_file) as f:
+                commands = yaml.safe_load(f).get('commands', [])
+                
+            for server in self.servers:
+                for cmd in commands:
+                    self.run_command(server['host'], server['port'], cmd)
+                    
+        except Exception as e:
+            print(f"[ERROR] Task execution failed: {e}")
+
+    def interactive_mode(self):
+        print("🐧 Linux SSH Manager (Type 'exit' to quit)")
+        while True:
+            try:
+                cmd = input("\nssh> ").strip()
+                if cmd.lower() in ['exit', 'quit']:
+                    break
+                    
+                for server in self.servers:
+                    self.run_command(server['host'], server['port'], cmd)
+                    
+            except KeyboardInterrupt:
+                print("\nExiting...")
                 break
-            for host in servers:
-                run_ssh_command(host['host'], config, cmd)
-        except KeyboardInterrupt:
-            print("\n[BİLGİ] Çıkılıyor...")
-            break
-
-def main():
-    parser = argparse.ArgumentParser(description="SSH Yönetim Aracı")
-    parser.add_argument('-i', '--input', help='YAML görev dosyası')
-    args = parser.parse_args()
-
-    try:
-        config = load_yaml("config.yaml")
-        validate_config(config)
-        servers = load_yaml("source.yaml")['servers']
-    except Exception as e:
-        print(f"[HATA] Yapılandırma hatası: {e}")
-        return
-
-    if args.input:
-        run_task_file(args.input, servers, config)
-    else:
-        interactive_mode(servers, config)
 
 if __name__ == "__main__":
-    main()
+    tool = LinuxSSHTool()
+    
+    if len(sys.argv) > 1:
+        tool.execute_task(sys.argv[1])
+    else:
+        tool.interactive_mode()
