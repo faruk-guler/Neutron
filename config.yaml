@@ -1,6 +1,6 @@
 ssh:
   user: admin
-  key_path: ~/.ssh/id_rsa
+  key_path: ~/.ssh/id_rsa #password or ssh-key
   port: 22
 winrm:
   user: Administrator
