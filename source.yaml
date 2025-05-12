@@ -1,1 +1,11 @@
-#
+servers:
+  - host: 192.168.55.66
+    type: ssh
+  - host: reposrv.guler.com
+    type: ssh
+  - host: 192.168.55.83
+    type: winrm
+  - host: docker.guler.com
+    type: ssh
+  - host: filesrv.guler.com
+    type: winrm
