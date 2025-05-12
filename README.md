@@ -1,4 +1,4 @@
-# Neutron -Powerful automation tool
+# Neutron -Effective automation tool
 It is a lightweight, fast, and elegant automation tool.
 ~~~sh
 Neutron/
