@@ -3,8 +3,3 @@ ssh:
 # password: YourPassword
   key_path: ~/.ssh/id_rsa #password or ssh-key path
   port: 22
-  
-winrm:
-  user: Administrator
-  password: YourPassword
-  port: 5985
