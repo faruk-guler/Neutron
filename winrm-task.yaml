@@ -1,5 +1,3 @@
 commands:
-  - name: Check disk space
-    command: powershell -Command "Get-Disk"
-  - name: Check PowerShell version
-    command: powershell -Command "$PSVersionTable.PSVersion"
+  - type: winrm
+    command: gpupdate /force"
