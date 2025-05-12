@@ -12,36 +12,73 @@ def run_ssh_command(server, config, command):
     print(f"\n[SSH] {server['host']}")
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(
-        hostname=server['host'],
-        port=config['ssh'].get('port', 22),
-        username=config['ssh']['user'],
-        key_filename=os.path.expanduser(config['ssh']['key_path']),
-        timeout=10
-    )
-    stdin, stdout, stderr = ssh.exec_command(command)
-    print(stdout.read().decode())
-    err = stderr.read().decode()
-    if err:
-        print(f"Error: {err}")
-    ssh.close()
+
+    connect_args = {
+        "hostname": server['host'],
+        "port": config['ssh'].get('port', 22),
+        "username": config['ssh']['user'],
+        "timeout": 10
+    }
+
+    if 'password' in config['ssh']:
+        connect_args['password'] = config['ssh']['password']
+    elif 'key_path' in config['ssh']:
+        connect_args['key_filename'] = os.path.expanduser(config['ssh']['key_path'])
+    else:
+        print(f"[HATA] SSH bağlantısı için 'password' ya da 'key_path' tanımlı değil.")
+        return
+
+    try:
+        ssh.connect(**connect_args)
+        stdin, stdout, stderr = ssh.exec_command(command)
+
+        output = stdout.read().decode().strip()
+        error = stderr.read().decode().strip()
+
+        if output:
+            print(f"[ÇIKTI] {output}")
+        if error:
+            print(f"[HATA] {error}")
+
+    except paramiko.AuthenticationException:
+        print(f"[HATA] Kimlik doğrulama başarısız. Kullanıcı adı veya şifre hatalı olabilir.")
+    except paramiko.SSHException as e:
+        print(f"[HATA] SSH bağlantı hatası: {str(e)}")
+    except Exception as e:
+        print(f"[HATA] Beklenmedik bir hata oluştu: {str(e)}")
+    finally:
+        ssh.close()
 
 def run_winrm_command(server, config, command):
     print(f"\n[WinRM] {server['host']}")
-    session = winrm.Session(
-        f"http://{server['host']}:{config['winrm'].get('port', 5985)}/wsman",
-        auth=(config['winrm']['user'], config['winrm']['password'])
-    )
-    result = session.run_cmd(command)
-    print(result.std_out.decode())
-    if result.std_err:
-        print(f"Error: {result.std_err.decode()}")
+    try:
+        session = winrm.Session(
+            f"http://{server['host']}:{config['winrm'].get('port', 5985)}/wsman",
+            auth=(config['winrm']['user'], config['winrm']['password'])
+        )
+        result = session.run_cmd(command)
+
+        output = result.std_out.decode().strip()
+        error = result.std_err.decode().strip()
+
+        if output:
+            print(f"[ÇIKTI] {output}")
+        if error:
+            print(f"[HATA] {error}")
+
+    except Exception as e:
+        print(f"[HATA] WinRM bağlantı hatası: {str(e)}")
 
 def run_task_file(task_file, servers, config):
-    tasks = load_yaml(task_file)
-    for task in tasks['commands']:
-        task_type = task['type']
-        command = task['command']
+    try:
+        tasks = load_yaml(task_file)
+    except Exception as e:
+        print(f"[HATA] Görev dosyası okunamadı: {e}")
+        return
+
+    for task in tasks.get('commands', []):
+        task_type = task.get('type')
+        command = task.get('command')
         for server in servers:
             if server['type'] == task_type:
                 if task_type == 'ssh':
@@ -50,7 +87,7 @@ def run_task_file(task_file, servers, config):
                     run_winrm_command(server, config, command)
 
 def interactive_mode(servers, config):
-    print("Etkinleştirilmiş: Etkileşimli mod. Çıkmak için 'exit' yaz.")
+    print("Etkinleştirildi: Etkileşimli mod. Çıkmak için 'exit' yaz.")
     while True:
         user_input = input("\nKomut > ").strip()
         if user_input.lower() == 'exit':
@@ -66,9 +103,13 @@ def main():
     parser.add_argument('-i', '--input', help='Komut dosyası (YAML) örnek: ssh-task.yaml')
     args = parser.parse_args()
 
-    config = load_yaml("config.yaml")
-    source = load_yaml("source.yaml")
-    servers = source["servers"]
+    try:
+        config = load_yaml("config.yaml")
+        source = load_yaml("source.yaml")
+        servers = source["servers"]
+    except Exception as e:
+        print(f"[HATA] config.yaml veya source.yaml okunamadı: {e}")
+        return
 
     if args.input:
         run_task_file(args.input, servers, config)
