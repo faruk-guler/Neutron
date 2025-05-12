@@ -5,5 +5,4 @@ servers:
     type: ssh
   - host: 192.168.55.83
     type: ssh
-  - host: docker.guler.com
 
