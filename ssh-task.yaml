@@ -1,1 +1,7 @@
-#
+commands:
+  - name: Check system uptime
+    command: uptime
+  - name: Check disk usage
+    command: df -h
+  - name: Check installed packages
+    command: dpkg -l | grep nginx
