@@ -63,7 +63,6 @@ class LinuxSSHTool:
                 'hostname': host,
                 'port': port,
                 'username': self.config['user'],
-                'timeout': self.config.get('timeout', 10)
             }
 
             # Use key or password for authentication
@@ -103,7 +102,11 @@ class LinuxSSHTool:
 
     def interactive_mode(self):
         """Start interactive mode for manual SSH command input."""
-        print("🐧 Linux SSH Manager (Type 'exit' to quit)")
+        print("#######################################################################")
+        print("🐧 Neutron -Lightweight automation tool for Linux (Type 'exit' to quit)")
+        print("###                            NEUTRON                              ###")
+        print("###                     www.farukguler.com                          ###")
+        print("#######################################################################")
         while True:
             try:
                 cmd = input("\nssh> ").strip()
