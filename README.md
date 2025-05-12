@@ -1,4 +1,4 @@
-# Neutron -Effective automation tool
+# Neutron -Effective automation tool for Linux
 It is a lightweight, fast, and elegant automation tool.
 ~~~sh
 Neutron/
