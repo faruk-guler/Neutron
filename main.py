@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import yaml
 import paramiko
+import colorama
 import os
 import sys
 from typing import List, Dict
