@@ -12,14 +12,14 @@ class LinuxSSHTool:
         self.servers = self.load_servers()
 
     def load_config(self) -> Dict:
-        """Load SSH configuration from config.yaml."""
+        """Load SSH configuration from config.cfg."""
         try:
-            with open('config.yaml') as f:
+            with open('config.cfg') as f:
                 config = yaml.safe_load(f)
 
             ssh_config = config.get('ssh')
             if not ssh_config or not ssh_config.get('user'):
-                raise ValueError("Invalid config.yaml: SSH user is not defined.")
+                raise ValueError("Invalid config.cfg: SSH user is not defined.")
 
             # Prevent using both key_path and password
             if ssh_config.get('key_path') and ssh_config.get('password'):
@@ -81,6 +81,8 @@ class LinuxSSHTool:
                 print(f"   ✅ Output:\n{output}")
             if error:
                 print(f"   ❗ Error:\n{error}")
+            if not output and not error:
+                print("   ⚠️  No output returned.")
 
         except Exception as e:
             print(f"   ❌ Connection error: {str(e)}")
