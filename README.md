@@ -21,6 +21,8 @@ import paramiko
 import os
 import sys
 
+example: pip install pyyaml paramiko
+
 ~~~
 
 # Requirements
