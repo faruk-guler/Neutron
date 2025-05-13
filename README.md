@@ -2,7 +2,8 @@
 <img src="https://farukguler.com/assets/img/neutron.png" alt="alt text" width="300" height="330">
 
 It is a lightweight, fast, and Powerful automation tool.
- -## Author: faruk-guler
+
+Author: faruk-guler
 ## Usage:
 > ./main.py
 > 
