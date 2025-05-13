@@ -16,7 +16,7 @@ class LinuxSSHTool:
         self.config = self.load_config()
         self.servers = self.load_servers()
         # Maximum number of parallel connections
-        self.max_workers = self.config.get('max_parallel', 5)
+        self.max_workers = self.config.get('max_parallel', 500)
 
     def load_config(self) -> Dict:
         """Load SSH configuration from config.cfg."""
