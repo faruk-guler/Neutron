@@ -9,6 +9,8 @@ from typing import List, Dict
 
 class LinuxSSHTool:
     def __init__(self):
+        # Initialize colorama
+        colorama.init(autoreset=True)
         self.config = self.load_config()
         self.servers = self.load_servers()
 
@@ -29,7 +31,7 @@ class LinuxSSHTool:
             return ssh_config
 
         except Exception as e:
-            print(f"[ERROR] Failed to load config: {e}")
+            print(f"{colorama.Fore.RED}[ERROR] Failed to load config: {e}{colorama.Style.RESET_ALL}")
             sys.exit(1)
 
     def load_servers(self) -> List[Dict]:
@@ -48,7 +50,7 @@ class LinuxSSHTool:
             return normalized
 
         except Exception as e:
-            print(f"[ERROR] Failed to load server list: {e}")
+            print(f"{colorama.Fore.RED}[ERROR] Failed to load server list: {e}{colorama.Style.RESET_ALL}")
             sys.exit(1)
 
     def run_command(self, host: str, port: int, command: str):
@@ -57,8 +59,8 @@ class LinuxSSHTool:
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
-            print(f"\n🔹 Connecting to {host}:{port}")
-            print(f"   $ {command}")
+            print(f"\n{colorama.Fore.BLUE}🔹 Connecting to {host}:{port}{colorama.Style.RESET_ALL}")
+            print(f"{colorama.Fore.CYAN}   $ {command}{colorama.Style.RESET_ALL}")
 
             connect_params = {
                 'hostname': host,
@@ -79,14 +81,14 @@ class LinuxSSHTool:
             error = stderr.read().decode().strip()
 
             if output:
-                print(f"   ✅ Output:\n{output}")
+                print(f"{colorama.Fore.GREEN}   ✅ Output:{colorama.Style.RESET_ALL}\n{output}")
             if error:
-                print(f"   ❗ Error:\n{error}")
+                print(f"{colorama.Fore.RED}   ❗ Error:{colorama.Style.RESET_ALL}\n{error}")
             if not output and not error:
-                print("   ⚠️  No output returned.")
+                print(f"{colorama.Fore.YELLOW}   ⚠️  No output returned.{colorama.Style.RESET_ALL}")
 
         except Exception as e:
-            print(f"   ❌ Connection error: {str(e)}")
+            print(f"{colorama.Fore.RED}   ❌ Connection error: {str(e)}{colorama.Style.RESET_ALL}")
         finally:
             ssh.close()
 
@@ -101,18 +103,18 @@ class LinuxSSHTool:
                     self.run_command(server['host'], server['port'], cmd)
 
         except Exception as e:
-            print(f"[ERROR] Task execution failed: {e}")
+            print(f"{colorama.Fore.RED}[ERROR] Task execution failed: {e}{colorama.Style.RESET_ALL}")
 
     def interactive_mode(self):
         """Start interactive mode for manual SSH command input."""
-        print("#######################################################################")
-        print("###                            NEUTRON                              ###")
-        print("### 🐧Lightweight automation tool for Linux (Type 'exit' to quit)   ###")
-        print("###                     www.farukguler.com                          ###")
-        print("#######################################################################")
+        print(f"{colorama.Fore.MAGENTA}#######################################################################")
+        print(f"{colorama.Fore.MAGENTA}###                            NEUTRON                              ###")
+        print(f"{colorama.Fore.MAGENTA}### 🐧Lightweight automation tool for Linux (Type 'exit' to quit)   ###")
+        print(f"{colorama.Fore.MAGENTA}###                     www.farukguler.com                          ###")
+        print(f"{colorama.Fore.MAGENTA}#######################################################################")
         while True:
             try:
-                cmd = input("\nssh> ").strip()
+                cmd = input(f"\n{colorama.Fore.GREEN}ssh>{colorama.Style.RESET_ALL} ").strip()
                 if cmd.lower() in ['exit', 'quit']:
                     break
 
@@ -120,7 +122,7 @@ class LinuxSSHTool:
                     self.run_command(server['host'], server['port'], cmd)
 
             except KeyboardInterrupt:
-                print("\nExiting...")
+                print(f"\n{colorama.Fore.YELLOW}Exiting...{colorama.Style.RESET_ALL}")
                 break
 
 
