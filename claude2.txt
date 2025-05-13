@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+import yaml
+import paramiko
+import colorama
+import os
+import sys
+import concurrent.futures
+from typing import List, Dict
+
+# Initialize colorama for cross-platform terminal colors
+colorama.init(autoreset=True)
+
+
+class LinuxSSHTool:
+    def __init__(self):
+        self.config = self.load_config()
+        self.servers = self.load_servers()
+        # Maximum number of parallel connections
+        self.max_workers = self.config.get('max_parallel', 5)
+
+    def load_config(self) -> Dict:
+        """Load SSH configuration from config.cfg."""
+        try:
+            with open('config.cfg') as f:
+                config = yaml.safe_load(f)
+
+            ssh_config = config.get('ssh')
+            if not ssh_config or not ssh_config.get('user'):
+                raise ValueError("Invalid config.cfg: SSH user is not defined.")
+
+            # Prevent using both key_path and password
+            if ssh_config.get('key_path') and ssh_config.get('password'):
+                raise ValueError("Please provide either a key_path or password, not both.")
+
+            return ssh_config
+
+        except Exception as e:
+            print(f"{colorama.Fore.RED}[ERROR] Failed to load config: {e}")
+            sys.exit(1)
+
+    def load_servers(self) -> List[Dict]:
+        """Load the list of servers from source.yaml."""
+        try:
+            with open('source.yaml') as f:
+                servers = yaml.safe_load(f).get('servers', [])
+
+            normalized = []
+            for s in servers:
+                if isinstance(s, str):
+                    normalized.append({'host': s, 'port': self.config.get('port', 22)})
+                else:
+                    s['port'] = s.get('port', self.config.get('port', 22))
+                    normalized.append(s)
+            return normalized
+
+        except Exception as e:
+            print(f"{colorama.Fore.RED}[ERROR] Failed to load server list: {e}")
+            sys.exit(1)
+
+    def run_command(self, host: str, port: int, command: str):
+        """Establish SSH connection and run a command on a remote host."""
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            print(f"\n{colorama.Fore.CYAN}🔹 Connecting to {host}:{port}")
+            print(f"   {colorama.Fore.YELLOW}$ {command}")
+
+            connect_params = {
+                'hostname': host,
+                'port': port,
+                'username': self.config['user'],
+            }
+
+            # Use key or password for authentication
+            if self.config.get('key_path'):
+                connect_params['key_filename'] = os.path.expanduser(self.config['key_path'])
+            elif self.config.get('password'):
+                connect_params['password'] = self.config['password']
+
+            ssh.connect(**connect_params)
+
+            stdin, stdout, stderr = ssh.exec_command(command)
+            output = stdout.read().decode().strip()
+            error = stderr.read().decode().strip()
+
+            if output:
+                print(f"{colorama.Fore.GREEN}   ✅ Output ({host}):\n{output}")
+            if error:
+                print(f"{colorama.Fore.RED}   ❗ Error ({host}):\n{error}")
+            if not output and not error:
+                print(f"{colorama.Fore.YELLOW}   ⚠️  No output returned from {host}.")
+
+        except Exception as e:
+            print(f"{colorama.Fore.RED}   ❌ Connection error on {host}: {str(e)}")
+        finally:
+            ssh.close()
+
+    def run_parallel_command(self, command: str):
+        """Run a command on all servers in parallel."""
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            # Submit tasks for each server
+            futures = [
+                executor.submit(self.run_command, server['host'], server['port'], command)
+                for server in self.servers
+            ]
+            # Wait for all tasks to complete
+            concurrent.futures.wait(futures)
+
+    def execute_task(self, task_file: str):
+        """Execute a list of commands from a YAML file on all servers."""
+        try:
+            with open(task_file) as f:
+                task_data = yaml.safe_load(f)
+                commands = task_data.get('commands', [])
+                parallel = task_data.get('parallel', False)
+
+            print(f"{colorama.Fore.BLUE}[INFO] Executing task file: {task_file}")
+            print(f"{colorama.Fore.BLUE}[INFO] Parallel execution: {'Enabled' if parallel else 'Disabled'}")
+            
+            if parallel:
+                # Run each command on all servers in parallel
+                for cmd in commands:
+                    print(f"{colorama.Fore.BLUE}[INFO] Running command in parallel mode")
+                    self.run_parallel_command(cmd)
+            else:
+                # Run sequentially (original behavior)
+                for server in self.servers:
+                    for cmd in commands:
+                        self.run_command(server['host'], server['port'], cmd)
+
+        except Exception as e:
+            print(f"{colorama.Fore.RED}[ERROR] Task execution failed: {e}")
+
+    def interactive_mode(self):
+        """Start interactive mode for manual SSH command input."""
+        print(f"{colorama.Fore.MAGENTA}#######################################################################")
+        print(f"{colorama.Fore.MAGENTA}###                            NEUTRON                              ###")
+        print(f"{colorama.Fore.MAGENTA}### 🐧Lightweight automation tool for Linux (Type 'exit' to quit)   ###")
+        print(f"{colorama.Fore.MAGENTA}###                     www.farukguler.com                          ###")
+        print(f"{colorama.Fore.MAGENTA}#######################################################################")
+        
+        # Print parallel execution info
+        print(f"{colorama.Fore.BLUE}[INFO] Maximum parallel connections: {self.max_workers}")
+        print(f"{colorama.Fore.BLUE}[INFO] Available commands:")
+        print(f"{colorama.Fore.BLUE}       - Type a shell command to execute on all servers")
+        print(f"{colorama.Fore.BLUE}       - Type 'parallel:on' to enable parallel execution")
+        print(f"{colorama.Fore.BLUE}       - Type 'parallel:off' to disable parallel execution")
+        print(f"{colorama.Fore.BLUE}       - Type 'exit' or 'quit' to exit")
+        
+        # Default to sequential execution in interactive mode
+        parallel_mode = False
+        
+        while True:
+            try:
+                cmd = input(f"{colorama.Fore.CYAN}\nssh{'(parallel)' if parallel_mode else ''}> ").strip()
+                
+                # Handle special commands
+                if cmd.lower() in ['exit', 'quit']:
+                    break
+                elif cmd.lower() == 'parallel:on':
+                    parallel_mode = True
+                    print(f"{colorama.Fore.GREEN}[INFO] Parallel execution enabled")
+                    continue
+                elif cmd.lower() == 'parallel:off':
+                    parallel_mode = False
+                    print(f"{colorama.Fore.GREEN}[INFO] Parallel execution disabled")
+                    continue
+                
+                # Execute the command
+                if parallel_mode:
+                    self.run_parallel_command(cmd)
+                else:
+                    for server in self.servers:
+                        self.run_command(server['host'], server['port'], cmd)
+
+            except KeyboardInterrupt:
+                print(f"{colorama.Fore.RED}\nExiting...")
+                break
+
+
+if __name__ == "__main__":
+    tool = LinuxSSHTool()
+
+    if len(sys.argv) > 1:
+        tool.execute_task(sys.argv[1])
+    else:
+        tool.interactive_mode()
