@@ -18,8 +18,6 @@ class ParallelSSH:
         
         cfg.setdefault('port', 22)
         cfg.setdefault('timeout', 10)
-        cfg.setdefault('workers', 5)
-        
         return cfg
 
     def _load_servers(self):
@@ -29,16 +27,16 @@ class ParallelSSH:
                 for h in hosts.get('servers', [])]
 
     def _connect(self, host):
-        if ':' in host:
-            host, port = host.split(':')
-            port = int(port)
-        else:
-            port = self.config['port']
-
         if host not in self.connections:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
+            if ':' in host:
+                hostname, port = host.split(':')
+                port = int(port)
+            else:
+                hostname, port = host, self.config['port']
+
             auth = {'username': self.config['user'],
                     'timeout': self.config['timeout']}
             
@@ -47,23 +45,17 @@ class ParallelSSH:
             else:
                 auth['password'] = self.config['password']
             
-            ssh.connect(hostname=host, port=port, **auth)
+            ssh.connect(hostname=hostname, port=port, **auth)
             self.connections[host] = ssh
         
         return self.connections[host]
 
     def run(self, command):
-        with ThreadPoolExecutor(max_workers=self.config['workers']) as executor:
-            futures = []
-            for server in self.servers:
-                futures.append(executor.submit(
-                    self._execute_command,
-                    server,
-                    command
-                ))
-            
-            for future in futures:
-                future.result()
+        with ThreadPoolExecutor() as executor:  # Varsayılan worker sayısı kullanır
+            list(executor.map(
+                lambda server: self._execute_command(server, command),
+                self.servers
+            ))
 
     def _execute_command(self, server, command):
         ssh = self._connect(server)
@@ -73,8 +65,8 @@ class ParallelSSH:
         error = stderr.read().decode().strip()
         
         print(f"\n[{server}]")
-        if output: print(f"Çıktı:\n{output}")
-        if error: print(f"Hata:\n{error}")
+        if output: print(output)
+        if error: print(f"Hata: {error}")
 
     def __del__(self):
         for conn in self.connections.values():
