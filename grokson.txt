@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+import yaml
+import paramiko
+import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+class LinuxSSHTool:
+    """Basit SSH aracı: Linux sunucularında paralel komut çalıştırır."""
+    def __init__(self):
+        self.config = self.load_config()
+        self.servers = self.load_servers()
+        self.ssh_sessions = {}
+        self.lock = threading.Lock()
+
+    def load_config(self):
+        """config.yaml'dan SSH ayarlarını yükler."""
+        try:
+            with open('config.yaml') as f:
+                config = yaml.safe_load(f)
+            if not config:
+                sys.exit("Hata: config.yaml boş.")
+            ssh_config = config.get('ssh', {})
+            if not ssh_config.get('user') or not (ssh_config.get('key_path') or ssh_config.get('password')):
+                sys.exit("Hata: Kullanıcı veya kimlik doğrulama eksik.")
+            ssh_config['port'] = ssh_config.get('port', 22)
+            return ssh_config
+        except Exception:
+            sys.exit("Hata: config.yaml okunamadı.")
+
+    def load_servers(self):
+        """servers.yaml'dan sunucu listesini yükler."""
+        try:
+            with open('servers.yaml') as f:
+                data = yaml.safe_load(f)
+            if not data:
+                sys.exit("Hata: servers.yaml boş.")
+            servers = []
+            for s in data.get('servers', []):
+                if isinstance(s, str) and s.strip():
+                    servers.append({'host': s.strip(), 'port': self.config['port']})
+                elif isinstance(s, dict) and s.get('host'):
+                    servers.append({'host': s['host'].strip(), 'port': s.get('port', self.config['port'])})
+            if not servers:
+                sys.exit("Hata: Sunucu listesi boş.")
+            return servers
+        except Exception:
+            sys.exit("Hata: servers.yaml okunamadı.")
+
+    def get_ssh_session(self, host, port):
+        """Sunucu için SSH bağlantısı alır veya oluşturur."""
+        key = f"{host}:{port}"
+        if key not in self.ssh_sessions:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            connect_params = {
+                'hostname': host,
+                'port': port,
+                'username': self.config['user'],
+                'timeout': self.config.get('timeout', 30)
+            }
+            if self.config.get('key_path'):
+                connect_params['key_filename'] = self.config['key_path']
+            else:
+                connect_params['password'] = self.config['password']
+            ssh.connect(**connect_params)
+            self.ssh_sessions[key] = ssh
+        return self.ssh_sessions[key]
+
+    def run_command(self, host, port, command):
+        """Sunucuda komut çalıştırır."""
+        try:
+            with self.lock:
+                print(f"\n{host}:{port} > {command}")
+            ssh = self.get_ssh_session(host, port)
+            stdin, stdout, stderr = ssh.exec_command(command, get_pty=True)
+            output = stdout.read().decode().strip()
+            error = stderr.read().decode().strip()
+            with self.lock:
+                if output:
+                    print(output)
+                if error:
+                    print(f"Hata: {error}")
+        except Exception as e:
+            with self.lock:
+                print(f"Hata: {e}")
+
+    def execute_task(self, task_file):
+        """YAML görev dosyasındaki komutları paralel çalıştırır."""
+        try:
+            with open(task_file) as f:
+                task_data = yaml.safe_load(f)
+            if not task_data:
+                sys.exit(f"Hata: {task_file} boş.")
+            commands = task_data.get('commands', [])
+            if not commands:
+                sys.exit("Hata: Komut listesi boş.")
+            with ThreadPoolExecutor(max_workers=min(10, len(self.servers))) as executor:
+                for cmd in commands:
+                    executor.map(lambda s: self.run_command(s['host'], s['port'], cmd), self.servers)
+        except Exception:
+            sys.exit(f"Hata: {task_file} okunamadı.")
+
+    def interactive_mode(self):
+        """Terminalden paralel komut çalıştırır."""
+        print("SSH Aracı: Komut girin veya 'exit' ile çıkın.")
+        while True:
+            cmd = input("ssh> ").strip()
+            if cmd.lower() == 'exit':
+                break
+            if not cmd:
+                continue
+            with ThreadPoolExecutor(max_workers=min(10, len(self.servers))) as executor:
+                executor.map(lambda s: self.run_command(s['host'], s['port'], cmd), self.servers)
+
+    def close_sessions(self):
+        """Tüm SSH bağlantılarını kapatır."""
+        for ssh in self.ssh_sessions.values():
+            ssh.close()
+
+if __name__ == "__main__":
+    tool = LinuxSSHTool()
+    try:
+        if len(sys.argv) > 1:
+            tool.execute_task(sys.argv[1])
+        else:
+            tool.interactive_mode()
+    finally:
+        tool.close_sessions()
