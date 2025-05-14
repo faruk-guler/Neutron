@@ -1,5 +1,6 @@
 servers:
   - host: sunucu1.example.com
   - host: 192.168.1.100
+  - port: 4545
   - host: sunucu2.example.com
   - host: 192.168.1.105
