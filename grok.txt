@@ -103,18 +103,23 @@ class SSHTool:
     def interactive_mode(self):
         print("SSH Aracı: Komut girin, 'exit' ile çıkın.")
         while True:
-            cmd = input("ssh> ").strip()
-            if cmd.lower() == 'exit':
+            try:
+                cmd = input("ssh> ").strip()
+                if cmd.lower() == 'exit':
+                    break
+                if not cmd:
+                    continue
+
+                for session in self.sessions:
+                    if session.send_command(cmd):
+                        time.sleep(0.5)
+                        output = session.get_output()
+                        print(f"\n{session.host}:{session.port} > {cmd}\n{output or '(çıktı yok)'}")
+            except KeyboardInterrupt:
+                print("\nProgram sonlandırılıyor...")
                 break
-            if not cmd:
-                continue
-
-            for session in self.sessions:
-                if session.send_command(cmd):
-                    time.sleep(0.5)
-                    output = session.get_output()
-                    print(f"\n{session.host}:{session.port} > {cmd}\n{output or '(çıktı yok)'}")
-
+            except Exception as e:
+                print(f"Hata oluştu: {e}")
 
     def close_all(self):
         for s in self.sessions:
@@ -127,3 +132,4 @@ if __name__ == "__main__":
         tool.interactive_mode()
     finally:
         tool.close_all()
+        print("Tüm oturumlar kapatıldı.")
