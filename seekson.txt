@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+import paramiko
+import yaml
+from concurrent.futures import ThreadPoolExecutor
+
+class ParallelSSH:
+    def __init__(self):
+        self.config = self._load_config()
+        self.servers = self._load_servers()
+        self.connections = {}
+
+    def _load_config(self):
+        with open('config.yaml') as f:
+            cfg = yaml.safe_load(f)
+        
+        if not cfg.get('user'):
+            raise ValueError("SSH kullanıcısı tanımlı değil")
+        
+        cfg.setdefault('port', 22)
+        cfg.setdefault('timeout', 10)
+        cfg.setdefault('workers', 5)
+        
+        return cfg
+
+    def _load_servers(self):
+        with open('hosts.yaml') as f:
+            hosts = yaml.safe_load(f)
+        return [h if isinstance(h, str) else f"{h['host']}:{h.get('port', 22)}" 
+                for h in hosts.get('servers', [])]
+
+    def _connect(self, host):
+        if ':' in host:
+            host, port = host.split(':')
+            port = int(port)
+        else:
+            port = self.config['port']
+
+        if host not in self.connections:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            auth = {'username': self.config['user'],
+                    'timeout': self.config['timeout']}
+            
+            if self.config.get('key_path'):
+                auth['key_filename'] = self.config['key_path']
+            else:
+                auth['password'] = self.config['password']
+            
+            ssh.connect(hostname=host, port=port, **auth)
+            self.connections[host] = ssh
+        
+        return self.connections[host]
+
+    def run(self, command):
+        with ThreadPoolExecutor(max_workers=self.config['workers']) as executor:
+            futures = []
+            for server in self.servers:
+                futures.append(executor.submit(
+                    self._execute_command,
+                    server,
+                    command
+                ))
+            
+            for future in futures:
+                future.result()
+
+    def _execute_command(self, server, command):
+        ssh = self._connect(server)
+        _, stdout, stderr = ssh.exec_command(command, timeout=self.config['timeout'])
+        
+        output = stdout.read().decode().strip()
+        error = stderr.read().decode().strip()
+        
+        print(f"\n[{server}]")
+        if output: print(f"Çıktı:\n{output}")
+        if error: print(f"Hata:\n{error}")
+
+    def __del__(self):
+        for conn in self.connections.values():
+            conn.close()
+
+if __name__ == "__main__":
+    ssh = ParallelSSH()
+    while True:
+        try:
+            cmd = input("Komut (çıkmak için 'exit'): ").strip()
+            if cmd.lower() == 'exit':
+                break
+            if cmd:
+                ssh.run(cmd)
+        except KeyboardInterrupt:
+            break
