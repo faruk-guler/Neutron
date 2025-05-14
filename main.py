@@ -57,7 +57,7 @@ class SSHSession:
 class SSHTool:
     def __init__(self):
         self.config = self.load_yaml('config.yaml').get('ssh', {})
-        self.servers = self.load_yaml('servers.yaml').get('servers', [])
+        self.sources = self.load_yaml('sources.yaml').get('sources', [])
         self.sessions = []
 
     def load_yaml(self, path):
@@ -68,10 +68,10 @@ class SSHTool:
             sys.exit(f"Hata: {path} okunamadı.")
 
     def setup_sessions(self):
-        if not self.servers:
+        if not self.sources:
             sys.exit("Hata: Sunucu listesi boş.")
 
-        for s in self.servers:
+        for s in self.sources:
             host, port = (s, self.config.get('port', 22)) if isinstance(s, str) else (s['host'], s.get('port', self.config.get('port', 22)))
             session = SSHSession(host, port, self.config)
             try:
