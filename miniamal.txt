@@ -1,102 +1,29 @@
-import paramiko
-import yaml
-import threading
-import queue
-import time
-import re
+import yaml, paramiko
 
-# ANSI escape kodlarını temizlemek için regex
-ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+def load_yaml(path):
+    with open(path) as f: return yaml.safe_load(f)
 
-def clean_output(text):
-    return ansi_escape.sub('', text).strip()
+def run_ssh(host, port, user, password, cmd):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(host, port, user, password, timeout=15)
+        _, stdout, stderr = ssh.exec_command(cmd)
+        out = stdout.read().decode().strip()
+        err = stderr.read().decode().strip()
+        ssh.close()
+        return out or err or "(çıktı yok)"
+    except:
+        return "bağlantı hatası"
 
-class SSHClientWrapper:
-    def __init__(self, host, port, user, password):
-        self.host = host
-        self.port = port
-        self.user = user
-        self.password = password
-        self.client = None
-        self.channel = None
+config = load_yaml('config.yaml')['ssh']
+sources = load_yaml('sources.yaml')['sources']
 
-    def connect(self):
-        self.client = paramiko.SSHClient()
-        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.client.connect(self.host, port=self.port, username=self.user, password=self.password, timeout=1)
-        self.channel = self.client.invoke_shell()
-        time.sleep(1)
-        # Gelen ilk prompt ve çıkışları boşalt
-        while self.channel.recv_ready():
-            self.channel.recv(65535)
-
-    def send_command(self, command, timeout=3):
-        if not self.channel:
-            raise Exception("Shell channel yok.")
-        self.channel.send(command + "\n")
-        time.sleep(0.1)
-        output = ""
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            while self.channel.recv_ready():
-                output += self.channel.recv(65535).decode(errors='ignore')
-            time.sleep(0.1)
-        return clean_output(output)
-
-    def close(self):
-        if self.client:
-            self.client.close()
-
-def load_configs():
-    with open("config.yaml") as f:
-        config = yaml.safe_load(f)
-    with open("sources.yaml") as f:
-        sources = yaml.safe_load(f)["sources"]
-    return config, sources
-
-def main():
-    config, sources = load_configs()
-
-    user = config["ssh"]["user"]
-    password = config["ssh"]["password"]
-    default_port = config["ssh"].get("port", 22)
-
-    clients = []
-    for src in sources:
-        host = src["host"]
-        port = src.get("port", default_port)
-        try:
-            client = SSHClientWrapper(host, port, user, password)
-            client.connect()
-            print(f"{host} bağlantısı başarılı.")
-            clients.append(client)
-        except Exception as e:
-            print(f"{host} bağlantı hatası: {e}")
-
-    if not clients:
-        print("Hiçbir sunucuya bağlanılamadı, program sonlandırılıyor.")
-        return
-
-    print("Komutları girin. Çıkmak için 'exit' yazın.")
-
-    while True:
-        cmd = input("shell # ").strip()
-        if not cmd:
-            continue
-        if cmd.lower() == "exit":
-            break
-
-        for client in clients:
-            try:
-                output = client.send_command(cmd)
-                print(f"\n=== {client.host} ===")
-                print(output)
-            except Exception as e:
-                print(f"\n{client.host} komut çalıştırma hatası: {e}")
-
-    for client in clients:
-        client.close()
-    print("Program sonlandı.")
-
-if __name__ == "__main__":
-    main()
+while True:
+    cmd = input("Komut (çıkış için exit): ")
+    if cmd.lower() == "exit": break
+    if not cmd: continue
+    for s in sources:
+        host = s['host'] if isinstance(s, dict) else s
+        port = s.get('port', config['port']) if isinstance(s, dict) else config['port']
+        print(f"{host}:{port} > {run_ssh(host, port, config['user'], config['password'], cmd)}")
