@@ -9,13 +9,13 @@ Author: faruk-guler
 ## Usage:
 > ./main.py
 > 
-> ./main.py task.yaml
+> ./main.py task.yaml # coming soon :(
 ~~~sh
 Neutron Files/
-├── config.yaml # Server information (port, credentials)
-├── main.py     # Main command (Python runs commands)
+├── config.yaml  # Server information (port, credentials)
+├── main.py      # Main command (Python runs commands)
 ├── sources.yaml # source list(IP/DNS, servers)
-├── task.yaml   # Optional commands, scripts)
+├── task.yaml    # Optional commands, scripts)
 
 Python Modules/
 import yaml
