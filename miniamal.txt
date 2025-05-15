@@ -80,7 +80,7 @@ def main():
     print("Komutları girin. Çıkmak için 'exit' yazın.")
 
     while True:
-        cmd = input("> ").strip()
+        cmd = input("shell # ").strip()
         if not cmd:
             continue
         if cmd.lower() == "exit":
