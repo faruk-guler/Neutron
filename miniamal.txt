@@ -20,7 +20,7 @@ config = load_yaml('config.yaml')['ssh']
 sources = load_yaml('sources.yaml')['sources']
 
 while True:
-    cmd = input("Komut (çıkış için exit): ")
+    cmd = input("shell # ")
     if cmd.lower() == "exit": break
     if not cmd: continue
     for s in sources:
