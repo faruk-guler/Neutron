@@ -13,6 +13,8 @@ def run_ssh(host, port, user, password, cmd):
         err = stderr.read().decode().strip()
         ssh.close()
         return out or err or "(çıktı yok)"
+    except paramiko.AuthenticationException:
+        return "şifre hatası"
     except:
         return "bağlantı hatası"
 
@@ -27,3 +29,4 @@ while True:
         host = s['host'] if isinstance(s, dict) else s
         port = s.get('port', config['port']) if isinstance(s, dict) else config['port']
         print(f"{host}:{port} > {run_ssh(host, port, config['user'], config['password'], cmd)}")
+    print("-" * 30)
