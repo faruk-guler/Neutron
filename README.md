@@ -14,7 +14,7 @@ Author: faruk-guler
 Neutron Files/
 ├── config.yaml # Server information (port, credentials)
 ├── main.py     # Main command (Python runs commands)
-├── source.yaml # source list(IP/DNS, servers)
+├── sources.yaml # source list(IP/DNS, servers)
 ├── task.yaml   # Optional commands, scripts)
 
 Python Modules/
