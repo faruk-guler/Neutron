@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import os
+import re
 from queue import Queue
 
 class SSHSession:
@@ -58,12 +59,16 @@ class SSHSession:
         start_time = time.time()
         while time.time() - start_time < timeout and not self.output_queue.empty():
             output += self.output_queue.get()
-        return output.strip()
+        return temizle_ansi(output.strip())
 
     def close(self):
         self.connected = False
         if self.client:
             self.client.close()
+
+def temizle_ansi(cikti):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', cikti)
 
 class SSHTool:
     def __init__(self):
