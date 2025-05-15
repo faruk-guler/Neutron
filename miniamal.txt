@@ -1,32 +1,38 @@
-import yaml, paramiko
+import yaml, paramiko, threading
 
 def load_yaml(path):
     with open(path) as f: return yaml.safe_load(f)
 
-def run_ssh(host, port, user, password, cmd):
+def run_ssh(host, port, user, password, cmd, prev_cd=""):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         ssh.connect(host, port, user, password, timeout=15)
-        _, stdout, stderr = ssh.exec_command(cmd)
-        out = stdout.read().decode().strip()
-        err = stderr.read().decode().strip()
+        full_cmd = f"{prev_cd} {cmd}".strip() if prev_cd else cmd
+        _, stdout, stderr = ssh.exec_command(full_cmd)
+        out = stdout.read().decode().strip() or stderr.read().decode().strip() or "(çıktı yok)"
         ssh.close()
-        return out or err or "(çıktı yok)"
-    except paramiko.AuthenticationException:
-        return "şifre hatası"
+        return f"{host}:{port} > {out}"
     except:
-        return "bağlantı hatası"
+        return f"{host}:{port} > bağlantı hatası"
 
 config = load_yaml('config.yaml')['ssh']
 sources = load_yaml('sources.yaml')['sources']
+prev_cd = ""
 
 while True:
     cmd = input("shell # ")
     if cmd.lower() == "exit": break
     if not cmd: continue
+    if cmd.startswith("cd "): prev_cd = cmd + " &&"; continue
+    threads = []
     for s in sources:
         host = s['host'] if isinstance(s, dict) else s
         port = s.get('port', config['port']) if isinstance(s, dict) else config['port']
-        print(f"{host}:{port} > {run_ssh(host, port, config['user'], config['password'], cmd)}")
+        t = threading.Thread(target=lambda: print(run_ssh(host, port, config['user'], config['password'], cmd, prev_cd)))
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()
+    prev_cd = ""
     print("-" * 30)
