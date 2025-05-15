@@ -118,7 +118,7 @@ class SSHTool:
         print("SSH Aracı: Komut girin, 'exit' ile çıkın.")
         while True:
             try:
-                cmd = input("ssh> ").strip()
+                cmd = input("shell #").strip()
                 if cmd.lower() == 'exit':
                     break
                 if not cmd:
