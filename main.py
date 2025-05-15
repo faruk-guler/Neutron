@@ -66,7 +66,7 @@ def main():
                 output = read_output(channel)
                 print("-" * 36)
                 print(f"{host}:{config.get('port',22)}")
-                print(">>>>>>>>>>>>>>>>>")
+                print("output # ")
                 print(output.strip())
     finally:
         for ssh in sessions.values():
