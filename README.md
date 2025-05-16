@@ -9,13 +9,13 @@ Author: faruk-guler
 ## Usage:
 > ./main.sh
 > 
-> ./main.sh task.ron # coming soon :(
+> ./main.sh task.ner # coming soon :(
 ~~~sh
 Neutron Files/
-├── config.ron  # Server information (port, credentials)
+├── config.ner  # Server information (port, credentials)
 ├── main.sh     # Main command (Python runs commands)
-├── sources.ron # source list(IP/DNS, servers)
-├── task.ron    # Optional commands, scripts)
+├── sources.ner # source list(IP/DNS, servers)
+├── task.ner    # Optional commands, scripts)
 
 Packages/
 sudo apt install sshpass
