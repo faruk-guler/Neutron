@@ -7,27 +7,23 @@ It is a lightweight, fast, and Powerful automation tool.
 
 Author: faruk-guler
 ## Usage:
-> ./main.py
+> ./main.sh
 > 
-> ./main.py task.yaml # coming soon :(
+> ./main.sh task.ne # coming soon :(
 ~~~sh
 Neutron Files/
-├── config.yaml  # Server information (port, credentials)
-├── main.py      # Main command (Python runs commands)
-├── sources.yaml # source list(IP/DNS, servers)
-├── task.yaml    # Optional commands, scripts)
+├── config.ne  # Server information (port, credentials)
+├── main.sh      # Main command (Python runs commands)
+├── sources.ne # source list(IP/DNS, servers)
+├── task.ne    # Optional commands, scripts)
 
-Python Modules/
-import yaml
-import paramiko
-......
-
-example: pip install pyyaml paramiko
+Packages/
+sudo apt install sshpass
 
 ~~~
 
 # Requirements
-- Python3
-- SSH
+- shpass
+- SSH service
 
 
