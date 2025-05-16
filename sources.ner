@@ -1,3 +1,4 @@
+# Host and Port definitions
 HOSTS=(
 "192.168.55.145:22"
 "192.168.55.146:22"
