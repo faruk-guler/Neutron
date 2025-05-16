@@ -8,7 +8,9 @@ It is a lightweight, fast, and Powerful
 Author: faruk-guler
 ## Usage:
 > chmod 600 config.ner sources.ner
+> 
 > chmod +x main.sh
+> 
 > ./main.sh
 > 
 > ./main.sh task.ner # coming soon :(
