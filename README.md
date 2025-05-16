@@ -13,7 +13,7 @@ Author: faruk-guler
 ~~~sh
 Neutron Files/
 ├── config.ron  # Server information (port, credentials)
-├── main.sh      # Main command (Python runs commands)
+├── main.sh     # Main command (Python runs commands)
 ├── sources.ron # source list(IP/DNS, servers)
 ├── task.ron    # Optional commands, scripts)
 
