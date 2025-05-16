@@ -1,6 +1,4 @@
-ssh:
-  user: root
-  password: "Password34545"
-  # key_path: ~/.ssh/id_rsa
-  port: 22
-  timeout: 15
+#!/bin/bash
+USER="admin"
+PASSWORD="Passwd234"
+PORT=22
