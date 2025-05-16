@@ -1,4 +1,3 @@
-#!/bin/bash
 USER="admin"
 PASSWORD="Passwd234"
 PORT=22
