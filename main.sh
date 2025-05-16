@@ -1,7 +1,7 @@
 #!/bin/bash
 
-source config.sh
-source sources.sh
+source config.ron
+source sources.ron
 
 command_loop() {
   while true; do
