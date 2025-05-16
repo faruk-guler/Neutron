@@ -1,7 +1,7 @@
 #!/bin/bash
 
-source config.ron
-source sources.ron
+source config.ner
+source sources.ner
 
 command_loop() {
   while true; do
