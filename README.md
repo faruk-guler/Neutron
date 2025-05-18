@@ -11,12 +11,13 @@ Author: faruk-guler
 > 
 > ./main.sh
 > 
+> ./main.sh task.ner # coming soon :(
 ~~~sh
 Neutron Files/
 ├── config.ner  # Server information (port, credentials)
 ├── main.sh     # Main command (Python runs commands)
 ├── sources.ner # source list(IP/DNS, servers)
-├── task.ner    # Optional commands, scripts) ./main.sh task.ner # coming soon :(
+├── task.ner    # Optional commands, scripts)
 
 Packages/
 sudo apt install sshpass
