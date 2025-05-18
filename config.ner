@@ -5,3 +5,4 @@ PASSWORD="Passwd5++"
 PORT="22"
 
 # ssh private-key will be the first priority.
+# Initially the default port is "22"
