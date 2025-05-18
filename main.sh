@@ -19,6 +19,9 @@ for host_port in "${HOSTS[@]}"; do
     host_ports["$host"]="$host:$port" # Store host:port information corresponding to the host
 done
 
+# temp data auto remover
+trap 'rm -f "${outputs[@]}"' EXIT
+
 while read -p "shell # " -er cmd; do
     [ -z "$cmd" ] && continue
     [ "$cmd" = "exit" ] && break
