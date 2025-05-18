@@ -3,7 +3,7 @@
 # intro show
 echo "#######################################################"
 echo "# Neutron"
-echo "# Remote Command Executor"
+echo "# Lightweight and Powerful automation tool for Linux/Unix"
 echo "# Author: faruk-guler"
 echo "# Page: www.farukguler.com github.com/faruk-guler"
 echo "########################################################"
