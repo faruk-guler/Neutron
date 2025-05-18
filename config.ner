@@ -1,4 +1,7 @@
-# SSH connection credentials
-USER="admin"
-PASSWORD="Passwd234"
-PORT=22
+# SSH credentials
+USER="root"
+PASSWORD="Passwd5++"
+#RIVATE_KEY_FILE="/root/.ssh/ansible.key"
+PORT="22"
+
+# ssh private-key will be the first priority.
