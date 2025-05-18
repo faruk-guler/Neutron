@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# intro show
 echo "#######################################################"
 echo "# Neutron"
 echo "# Lightweight and Powerful automation tool for Linux/Unix"
