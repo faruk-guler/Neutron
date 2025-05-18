@@ -25,7 +25,7 @@ sudo apt install sshpass
 ~~~
 
 # Requirements:
-- shpass
+- sshpass
 - SSH service
 
 
