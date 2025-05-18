@@ -1,14 +1,23 @@
 #!/bin/bash
+
+# intro show
+echo "#######################################################"
+echo "# Neutron"
+echo "# Remote Command Executor"
+echo "# Author: faruk-guler"
+echo "# Page: www.farukguler.com github.com/faruk-guler"
+echo "########################################################"
+
 source config.ner || exit 1
 source sources.ner || exit 1
 
 declare -A current_dir
-declare -A host_ports # Host ve port bilgilerini saklamak için
+declare -A host_ports # To store host and port information
 
 for host_port in "${HOSTS[@]}"; do
     IFS=: read host port <<< "$host_port"
     current_dir["$host"]="/root"
-    host_ports["$host"]="$host:$port" # Host'a karşılık gelen host:port bilgisini sakla
+    host_ports["$host"]="$host:$port" # Store host:port information corresponding to the host
 done
 
 while read -p "shell # " -er cmd; do
@@ -28,15 +37,22 @@ while read -p "shell # " -er cmd; do
 
     for host in "${!current_dir[@]}"; do
         host_port="${host_ports["$host"]}"
-        IFS=: read _ port <<< "$host_port" # Port bilgisini al
+        IFS=: read _ port <<< "$host_port" # Get port information
         temp_file=$(mktemp)
         outputs["$host"]="$temp_file"
-        # Hem hostname hem de istenen komutu tek SSH bağlantısında çalıştır
-        sshpass -p "$PASSWORD" ssh -n \
-            -o ConnectTimeout=3 \
-            -o StrictHostKeyChecking=no \
-            -p "$port" "$USER@$host" \
-            "cd \"${current_dir["$host"]}\" && hostname && $cmd" > "$temp_file" 2>&1 &
+
+        ssh_command="ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\" \"cd \\\"${current_dir["$host"]}\\\" && hostname && $cmd\" > \"$temp_file\" 2>&1 &"
+
+        if [ -n "$PRIVATE_KEY_FILE" ]; then
+            ssh_command="ssh -i \"$PRIVATE_KEY_FILE\" -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\" \"cd \\\"${current_dir["$host"]}\\\" && hostname && $cmd\" > \"$temp_file\" 2>&1 &"
+        elif [ -n "$PASSWORD" ]; then
+            ssh_command="sshpass -p \"$PASSWORD\" ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\" \"cd \\\"${current_dir["$host"]}\\\" && hostname && $cmd\" > \"$temp_file\" 2>&1 &"
+        else
+            echo "Error: Authentication information not found (password or private key not defined)."
+            continue # Skip command execution for this host
+        fi
+
+        eval "$ssh_command"
         jobs["$host"]="$!"
     done
 
@@ -48,10 +64,10 @@ while read -p "shell # " -er cmd; do
             echo ""
         fi
         echo "----------- $(echo "$host_port" | cut -d':' -f1) -----------"
-        # Host bilgisini al ve yazdır
+        # Print only hostname and '#' sign
         hostname=$(cat "${outputs["$host"]}" | head -n 1)
-        echo "$hostname"
-        # 'hostname' satırını atlayarak asıl komutun çıktısını yazdır
+        echo "$hostname #"
+        # Skip the 'hostname' line and print the actual command output
         cat "${outputs["$host"]}" | tail -n +2
         echo "--------------------------------------------"
         rm "${outputs["$host"]}"
