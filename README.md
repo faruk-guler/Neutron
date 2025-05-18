@@ -1,7 +1,7 @@
 # Neutron
 ## Lightweight and Powerful automation tool for Linux/Unix
 ## Basic Ansible Alternative Project
-<img src="https://farukguler.com/assets/img/neutron.png" alt="alt text" width="320" height="300">
+<img src="https://farukguler.com/assets/img/neutron.png" alt="alt text" width="300" height="280">
 
 It is a lightweight, fast, and Powerful
 
