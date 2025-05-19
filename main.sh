@@ -9,11 +9,11 @@ cat << EOF
 ########################################################
 EOF
 
-# Komut geçmişi dosyası
+# history file
 HISTORY_FILE="$HOME/.neutron_history"
 touch "$HISTORY_FILE"
 
-# Readline ayarları
+# Readline conf.
 if [[ $- == *i* ]]; then
     bind '"\e[A": history-search-backward'
     bind '"\e[B": history-search-forward'
@@ -37,7 +37,7 @@ done
 # temp data auto remover
 trap 'rm -f "${outputs[@]}"' EXIT
 
-# Komut geçmişini yükle
+# upload command history
 history -r "$HISTORY_FILE"
 
 while read -e -p "shell # " -r cmd; do
