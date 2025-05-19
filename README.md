@@ -5,6 +5,8 @@
 
 It is a lightweight, fast, and Powerful
 
+The tool supports connection with both password and SSH key, but priority is given to the key file.
+
 Author: faruk-guler
 ## Usage:
 > chmod 600 config.ner sources.ner
