@@ -1,13 +1,22 @@
 #!/bin/bash
 
-cat << EOF
-#######################################################
-# Neutron v4
+# Color definitions (added)
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Enable interpretation of backslash escapes
+echo -e "$(cat << EOF
+\033[0;36m###########################################################
+# \033[0;32mNeutron v4
 # Lightweight and Powerful automation tool for Linux/Unix
 # Author: faruk-guler
 # Page: www.farukguler.com github.com/faruk-guler
-########################################################
+\033[0;36m###########################################################\033[0m
 EOF
+)"
 
 # history file
 HISTORY_FILE="$HOME/.neutron_history"
@@ -22,8 +31,8 @@ if [[ $- == *i* ]]; then
     bind 'TAB: menu-complete'
 fi
 
-source config.ner || exit 1
-source sources.ner || exit 1
+source config.ner || { echo -e "${RED}Error: config.ner not found!${NC}"; exit 1; }
+source sources.ner || { echo -e "${RED}Error: sources.ner not found!${NC}"; exit 1; }
 
 declare -A current_dir
 declare -A host_ports # To store host and port information
@@ -40,8 +49,8 @@ trap 'rm -f "${outputs[@]}"' EXIT
 # upload command history
 history -r "$HISTORY_FILE"
 
-while read -e -p "shell # " -r cmd; do
-    # add command history
+while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
+    # Komutu geçmişe ekle
     history -s "$cmd"
     history -w "$HISTORY_FILE"
 
@@ -59,10 +68,10 @@ while read -e -p "shell # " -r cmd; do
             elif [ -n "$PASSWORD" ]; then
                 ssh_command="sshpass -p \"$PASSWORD\" ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\" \"test -d \\\"$dir\\\"\""
             else
-                echo "Error: Authentication information not found for $host"
+                echo -e "${YELLOW}Error: Authentication information not found for $host${NC}"
                 continue
             fi
-            eval "$ssh_command" && current_dir["$host"]="$dir" || echo "Warning: Directory $dir does not exist on $host"
+            eval "$ssh_command" && current_dir["$host"]="$dir" || echo -e "${YELLOW}Warning: Directory $dir does not exist on $host${NC}"
         done
         continue
     fi
@@ -83,7 +92,7 @@ while read -e -p "shell # " -r cmd; do
         elif [ -n "$PASSWORD" ]; then
             ssh_command="sshpass -p \"$PASSWORD\" ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\" \"cd \\\"${current_dir["$host"]}\\\" && hostname && $cmd\" > \"$temp_file\" 2>&1 &"
         else
-            echo "Error: Authentication information not found (password or private key not defined)."
+            echo -e "${YELLOW}Error: Authentication information not found (password or private key not defined).${NC}"
             continue # Skip command execution for this host
         fi
 
@@ -98,13 +107,13 @@ while read -e -p "shell # " -r cmd; do
         if ! "$first"; then
             echo ""
         fi
-        echo "----------- $(echo "$host_port" | cut -d':' -f1) -----------"
+        echo -e "${BLUE}----------- $(echo "$host_port" | cut -d':' -f1) -----------${NC}"
         # Print only hostname and '#' sign
         hostname=$(cat "${outputs["$host"]}" | head -n 1)
-        echo "$hostname #"
+        echo -e "${GREEN}$hostname ${CYAN}#${NC}"
         # Skip the 'hostname' line and print the actual command output
         cat "${outputs["$host"]}" | tail -n +2
-        echo "--------------------------------------------"
+        echo -e "${BLUE}--------------------------------------------${NC}"
         rm "${outputs["$host"]}"
         first=false
     done
