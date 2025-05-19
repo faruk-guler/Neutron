@@ -1,7 +1,7 @@
 # SSH credentials
 USER="root"
 PASSWORD="Passwd5++"
-#RIVATE_KEY_FILE="/root/.ssh/neutron.key"
+#PRIVATE_KEY_FILE="/root/.ssh/neutron.key"
 PORT="22"
 
 # ssh private-key will be the first priority.
