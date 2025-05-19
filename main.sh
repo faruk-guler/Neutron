@@ -1,11 +1,13 @@
 #!/bin/bash
 
-echo "#######################################################"
-echo "# Neutron"
-echo "# Lightweight and Powerful automation tool for Linux/Unix"
-echo "# Author: faruk-guler"
-echo "# Page: www.farukguler.com github.com/faruk-guler"
-echo "########################################################"
+cat << EOF
+#######################################################
+# Neutron
+# Lightweight and Powerful automation tool for Linux/Unix
+# Author: faruk-guler
+# Page: www.farukguler.com github.com/faruk-guler
+########################################################
+EOF
 
 source config.ner || exit 1
 source sources.ner || exit 1
