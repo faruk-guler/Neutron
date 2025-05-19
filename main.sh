@@ -2,7 +2,7 @@
 
 cat << EOF
 #######################################################
-# Neutron
+# Neutron v4
 # Lightweight and Powerful automation tool for Linux/Unix
 # Author: faruk-guler
 # Page: www.farukguler.com github.com/faruk-guler
