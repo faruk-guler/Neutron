@@ -41,7 +41,7 @@ trap 'rm -f "${outputs[@]}"' EXIT
 history -r "$HISTORY_FILE"
 
 while read -e -p "shell # " -r cmd; do
-    # Komutu geçmişe ekle
+    # add command history
     history -s "$cmd"
     history -w "$HISTORY_FILE"
 
