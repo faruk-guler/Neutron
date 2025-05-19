@@ -9,6 +9,19 @@ cat << EOF
 ########################################################
 EOF
 
+# Komut geçmişi dosyası
+HISTORY_FILE="$HOME/.neutron_history"
+touch "$HISTORY_FILE"
+
+# Readline ayarları
+if [[ $- == *i* ]]; then
+    bind '"\e[A": history-search-backward'
+    bind '"\e[B": history-search-forward'
+    bind 'set show-all-if-ambiguous on'
+    bind 'set completion-ignore-case on'
+    bind 'TAB: menu-complete'
+fi
+
 source config.ner || exit 1
 source sources.ner || exit 1
 
@@ -24,7 +37,14 @@ done
 # temp data auto remover
 trap 'rm -f "${outputs[@]}"' EXIT
 
-while read -p "shell # " -er cmd; do
+# Komut geçmişini yükle
+history -r "$HISTORY_FILE"
+
+while read -e -p "shell # " -r cmd; do
+    # Komutu geçmişe ekle
+    history -s "$cmd"
+    history -w "$HISTORY_FILE"
+
     [ -z "$cmd" ] && continue
     [ "$cmd" = "exit" ] && break
 
