@@ -8,10 +8,11 @@ It is a lightweight, fast, and Powerful
 Author: faruk-guler
 ## Usage:
 > chmod 600 config.ner sources.ner
-> chmod 600 ~/.ssh/neutron.key
 >
 > chmod 700 main.sh
 > 
+> chmod 600 ~/.ssh/neutron.key
+>
 > ./main.sh
 > 
 > ./main.sh task.ner # coming soon :(
