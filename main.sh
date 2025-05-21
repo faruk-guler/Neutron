@@ -36,6 +36,9 @@ fi
 source config.ner || { echo -e "${RED}Error: config.ner not found! Please create it and enter your SSH credentials.${NC}"; exit 1; }
 source sources.ner || { echo -e "${RED}Error: sources.ner not found! Please create it and enter your server list.${NC}"; exit 1; }
 
+[ -z "${HOSTS+x}" ] && { echo "Error: HOSTS not defined in sources.ner"; exit 1; }
+[ -z "${USER+x}" ] && { echo "Error: USER not defined in config.ner"; exit 1; }
+
 # Initialize session data
 # 'current_dir': Stores the current directory for each host.
 # 'host_ports': Maps hostnames to their host:port combinations.
@@ -74,7 +77,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
             # -o ConnectTimeout=3: Sets connection timeout to 3 seconds.
             # -o StrictHostKeyChecking=no: Disables strict host key checking (use with caution).
             ssh_base="ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\""
-            
+
             # Only private key file authentication is used
             if [ -n "$PRIVATE_KEY_FILE" ]; then
                 ssh_cmd="$ssh_base -i \"$PRIVATE_KEY_FILE\""
@@ -83,7 +86,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
                 echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ner.${NC}"
                 continue # Skip to the next host
             fi
-            
+
             # Test if the directory exists on the remote server and update the current directory.
             # 'test -d "$dir"': Returns true if the directory exists.
             eval "$ssh_cmd \"test -d \\\"$dir\\\"\"" && current_dir["$host"]="$dir" || \
@@ -105,7 +108,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         # Base SSH connection command
         # -n: Prevents reading stdin from /dev/null.
         ssh_base="ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\""
-        
+
         # Only private key file authentication is used
         if [ -n "$PRIVATE_KEY_FILE" ]; then
             ssh_cmd="$ssh_base -i \"$PRIVATE_KEY_FILE\""
