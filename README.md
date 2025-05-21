@@ -3,9 +3,7 @@
 ## Basic Ansible Alternative Project
 <img src="https://farukguler.com/assets/img/neutron.png" alt="alt text" width="300" height="200">
 
-It is a lightweight, fast, and Powerful
-
-For security reasons, it will only support connection via SSH key.
+It is a lightweight, fast, and Powerful For security reasons, it will only support connection via SSH key.
 
 Author: faruk-guler
 ## Usage:
