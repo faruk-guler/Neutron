@@ -3,5 +3,5 @@ USER=root
 PRIVATE_KEY_FILE="/root/.ssh/neutron.key"
 PORT="22"
 
-# # only ssh private-key is used. add the necessary key to the hosts before this.
-# # The default port is "22". Custom ports can be given in the sources.ner file.
+# only ssh private-key is used. add the necessary key to the hosts before this.
+# The default port is "22". Custom ports can be given in the sources.ner file.
