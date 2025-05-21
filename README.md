@@ -28,6 +28,6 @@ xxx
 
 # Requirements:
 - SSH key passphrases
-- SSH service on ports
+- SSH service and ports
 
 
