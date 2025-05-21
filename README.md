@@ -22,7 +22,7 @@ Neutron Files/
 ├── task.ner    # Optional long commands, scripts)
 
 Packages/
-sudo apt install sshpass
+xxx
 
 ~~~
 
