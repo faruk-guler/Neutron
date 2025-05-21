@@ -5,4 +5,4 @@ HOSTS=(
 "192.168.44.147:5656"
 )
 
-# # The default port is "22". Custom ports can be given in the sources.ner file.
+# The default port is "22". Custom ports can be given in the sources.ner file.
