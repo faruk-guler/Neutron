@@ -30,6 +30,6 @@ sudo apt install sshpass
 
 # Requirements:
 - SSH key passphrases
-- SSH service
+- SSH service on ports
 
 
