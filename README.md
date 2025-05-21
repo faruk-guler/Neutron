@@ -29,7 +29,7 @@ sudo apt install sshpass
 ~~~
 
 # Requirements:
-- sshpass
+- SSH key passphrases
 - SSH service
 
 
