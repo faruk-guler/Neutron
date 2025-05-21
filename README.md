@@ -5,7 +5,7 @@
 
 It is a lightweight, fast, and Powerful
 
-The tool supports connection with both password and SSH key, but priority is given to the key file.
+For security reasons, it will only support connection via SSH key.
 
 Author: faruk-guler
 ## Usage:
