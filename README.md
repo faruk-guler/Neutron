@@ -17,14 +17,14 @@ Author: faruk-guler
 > 
 > ./main.sh task.ner # coming soon :(
 ~~~sh
-#Neutron Structure:
+# Neutron Structure:
 ├── config.ner  # Server information (port, credentials)
 ├── main.sh     # Main command (Python runs commands)
 ├── sources.ner # source list(IP/DNS, servers)
 ├── task.ner    # Optional long commands, scripts)
 ~~~
 ~~~sh
-#Start SSH Agent and load the Private key into the agent:
+# Start SSH Agent and load the Private key into the agent:
 eval "$(ssh-agent -s)"
 ssh-add /root/.ssh/ansible.key
 ~~~
