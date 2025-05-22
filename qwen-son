@@ -1,0 +1,156 @@
+#!/bin/bash
+
+# Color definitions
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Banner
+echo -e "${CYAN}###########################################################${NC}
+${GREEN}# Neutron v5${NC}
+# Lightweight and Powerful automation tool for Linux/Unix
+# Author: faruk-guler
+# Page: www.farukguler.com github.com/faruk-guler
+${CYAN}###########################################################${NC}"
+
+# History file
+HISTORY_FILE="$HOME/.neutron_history"
+touch "$HISTORY_FILE"
+
+# Readline settings (for interactive shell)
+if [[ $- == *i* ]]; then
+    bind '"\e[A": history-search-backward' # Up arrow: search history backward
+    bind '"\e[B": history-search-forward'  # Down arrow: search history forward
+    bind 'set show-all-if-ambiguous on'    # Show all options when tab completing
+    bind 'set completion-ignore-case on'   # Case-insensitive tab completion
+    bind 'TAB: menu-complete'              # Menu completion with Tab
+fi
+
+# Load configuration files
+source config.ner || { echo -e "${RED}Error: config.ner not found! Please create it and enter your SSH credentials.${NC}"; exit 1; }
+source sources.ner || { echo -e "${RED}Error: sources.ner not found! Please create it and enter your server list.${NC}"; exit 1; }
+
+[ -z "${HOSTS+x}" ] && { echo "Error: HOSTS not defined in sources.ner"; exit 1; }
+[ -z "${USER+x}" ] && { echo "Error: USER not defined in config.ner"; exit 1; }
+
+# Initialize session data
+declare -A current_dir host_ports
+
+for host_port in "${HOSTS[@]}"; do
+    IFS=: read host port <<< "$host_port"
+    current_dir["$host"]="/root"
+    host_ports["$host"]="$host:$port"
+done
+
+# Clean up temporary files on exit
+trap 'rm -f "${outputs[@]}"' EXIT
+
+# Load command history
+history -r "$HISTORY_FILE"
+
+# Host keyscan function with duplicate check to avoid SSH first-time warning
+add_known_host() {
+    local host="$1"
+    local port="$2"
+    local known_hosts=~/.ssh/known_hosts
+    local temp_file=$(mktemp)
+
+    # Fetch the key from remote host
+    ssh-keyscan -p "$port" "$host" 2>/dev/null | grep -v '^#' > "$temp_file"
+
+    # Check if host:port already exists in known_hosts
+    if ! ssh-keygen -F "[$host]:$port" >/dev/null; then
+        cat "$temp_file" >> "$known_hosts"
+        echo -e "${GREEN}[INFO] Added [$host]:$port to known_hosts${NC}"
+    else
+        echo -e "${YELLOW}[INFO] [$host]:$port already exists in known_hosts${NC}"
+    fi
+
+    rm -f "$temp_file"
+}
+
+# Main loop
+while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
+    history -s "$cmd"
+    history -w "$HISTORY_FILE"
+
+    [ -z "$cmd" ] && continue
+    [ "$cmd" = "exit" ] && break
+
+    # Handle "cd" command
+    if [[ "$cmd" =~ ^cd ]]; then
+        dir="${cmd#cd }"
+        for host in "${!current_dir[@]}"; do
+            IFS=: read _ port <<< "${host_ports[$host]}"
+            
+            # Known host kontrolü
+            add_known_host "$host" "$port"
+            
+            # Base SSH connection command
+            ssh_base="ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\""
+
+            # Only private key file authentication is used
+            if [ -n "$PRIVATE_KEY_FILE" ]; then
+                ssh_cmd="$ssh_base -i \"$PRIVATE_KEY_FILE\""
+            else
+                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ner.${NC}"
+                continue
+            fi
+
+            # Test directory existence
+            eval "$ssh_cmd \"test -d \\\"$dir\\\"\"" && current_dir["$host"]="$dir" || \
+                echo -e "${YELLOW}Warning: Directory $dir does not exist on $host.${NC}"
+        done
+        continue
+    fi
+
+    # Handle all other commands
+    unset -v jobs outputs
+    declare -A jobs outputs
+
+    for host in "${!current_dir[@]}"; do
+        IFS=: read _ port <<< "${host_ports[$host]}"
+        temp_file=$(mktemp)
+        outputs["$host"]="$temp_file"
+
+        # Known host kontrolü
+        add_known_host "$host" "$port"
+
+        # SSH command
+        ssh_base="ssh -n -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" \"$USER@$host\""
+        
+        if [ -n "$PRIVATE_KEY_FILE" ]; then
+            ssh_cmd="$ssh_base -i \"$PRIVATE_KEY_FILE\""
+        else
+            echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ner.${NC}"
+            continue
+        fi
+
+        remote_cmd="cd \"${current_dir[$host]}\" && hostname && $cmd"
+        eval "$ssh_cmd \"$remote_cmd\" > \"$temp_file\" 2>&1 &"
+        jobs["$host"]="$!"
+    done
+
+    # Output results
+    first=true
+    for host in "${!jobs[@]}"; do
+        wait "${jobs[$host]}"
+        host_port="${host_ports[$host]}"
+        host_name=$(echo "$host_port" | cut -d':' -f1)
+
+        if ! $first; then
+            echo ""
+        fi
+
+        echo -e "${BLUE}----------- $host_name -----------${NC}"
+        mapfile -t lines < "${outputs[$host]}"
+        echo -e "${GREEN}${lines[0]} ${CYAN}#${NC}"
+        printf "%s\n" "${lines[@]:1}"
+        echo -e "${BLUE}--------------------------------------------${NC}"
+        rm "${outputs[$host]}"
+        first=false
+    done
+done
