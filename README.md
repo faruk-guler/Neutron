@@ -17,7 +17,7 @@ Author: faruk-guler
 > 
 > ./main.sh task.ner # coming soon :(
 ~~~sh
-Neutron Files/
+Neutron Structure:
 ├── config.ner  # Server information (port, credentials)
 ├── main.sh     # Main command (Python runs commands)
 ├── sources.ner # source list(IP/DNS, servers)
