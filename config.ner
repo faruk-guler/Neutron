@@ -2,4 +2,4 @@
 USER="root"
 PRIVATE_KEY_FILE="/root/.ssh/neutron.key"
 
-# only ssh private-key is used. add the necessary key to the hosts before this.
+# Only ssh private-key is used. add the necessary key to the hosts before this.
