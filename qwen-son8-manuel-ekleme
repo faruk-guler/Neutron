@@ -74,6 +74,55 @@ build_ssh_command() {
     echo "ssh $additional_opts -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -p \"$port\" -i \"$PRIVATE_KEY_FILE\" \"$USER@$host\""
 }
 
+# Add host key to known_hosts after validation
+add_known_host_secure() {
+    local host="$1"
+    local port="$2"
+    local known_hosts="$HOME/.ssh/known_hosts"
+    local temp_file=$(mktemp)
+
+    echo -e "${YELLOW}[INFO] Fetching SSH key for [$host]:$port...${NC}"
+
+    # Get the host key
+    ssh-keyscan -p "$port" "$host" 2>/dev/null > "$temp_file"
+
+    if [ $? -ne 0 ] || [ ! -s "$temp_file" ]; then
+        echo -e "${RED}[ERROR] Could not retrieve SSH key for [$host]:$port${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+
+    echo -e "${CYAN}[KEY] Retrieved key:${NC}"
+    cat "$temp_file"
+
+    # Validate key format
+    if ! ssh-keygen -lf "$temp_file" >/dev/null 2>&1; then
+        echo -e "${RED}[ERROR] Invalid SSH key format for [$host]:$port${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+
+    # Check if already exists in known_hosts
+    if ssh-keygen -F "[$host]:$port" -f "$known_hosts" >/dev/null; then
+        echo -e "${YELLOW}[INFO] [$host]:$port already exists in known_hosts${NC}"
+        rm -f "$temp_file"
+        return 0
+    fi
+
+    # Ask user confirmation before adding
+    read -p $'\n'"[CONFIRM] Add this key to known_hosts? (y/n): " -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        cat "$temp_file" >> "$known_hosts"
+        echo -e "${GREEN}[SUCCESS] Added [$host]:$port to known_hosts${NC}"
+    else
+        echo -e "${YELLOW}[CANCEL] Key for [$host]:$port was NOT added${NC}"
+    fi
+
+    rm -f "$temp_file"
+}
+
 # Execute validation
 validate_config
 validate_hosts
@@ -87,9 +136,15 @@ for host_port in "${HOSTS[@]}"; do
     host_ports["$host"]="$host:$port"
 done
 
-# Inform user about manual known_hosts setup
-echo -e "${YELLOW}[SECURITY] Please ensure all hosts are manually added to ~/.ssh/known_hosts before use.${NC}"
-echo -e "${YELLOW}[INFO] You can use 'ssh-keyscan' or 'ssh' command to verify and add keys securely.${NC}"
+# Add known hosts securely
+for host_port in "${HOSTS[@]}"; do
+    IFS=: read -r host port <<< "$host_port"
+    add_known_host_secure "$host" "$port"
+done
+
+# Inform user about manual known_hosts setup (optional)
+# echo -e "${YELLOW}[SECURITY] Please ensure all hosts are manually added to ~/.ssh/known_hosts before use.${NC}"
+# echo -e "${YELLOW}[INFO] You can use 'ssh-keyscan' or 'ssh' command to verify and add keys securely.${NC}"
 
 # Clean up temporary files on exit
 trap 'for tmp in "${outputs[@]}"; do rm -f "$tmp" 2>/dev/null; done' EXIT
