@@ -62,9 +62,9 @@ build_ssh_command() {
     local port="$2"
     local additional_opts="${3:-}"
     
-    # StrictHostKeyChecking=no setting is kept constant.
+    # StrictHostKeyChecking=no setting is kept constant. (yes or no)
     # Don't forget the security risk!
-    echo "ssh $additional_opts -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" -i \"$PRIVATE_KEY_FILE\" \"$USER@$host\""
+    echo "ssh $additional_opts -o ConnectTimeout=3 -o StrictHostKeyChecking=yes -p \"$port\" -i \"$PRIVATE_KEY_FILE\" \"$USER@$host\""
 }
 
 # Add host key to known_hosts to avoid SSH first-time warning
