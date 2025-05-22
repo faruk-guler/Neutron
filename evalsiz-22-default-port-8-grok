@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 
 # Banner
 echo -e "${CYAN}###########################################################${NC}
-${GREEN}# Neutron Automation v7${NC}
+${GREEN}# Neutron Automation v8${NC}
 # Lightweight and Powerful automation tool for Linux/Unix
 # Author: faruk-guler
 # Page: www.farukguler.com github.com/faruk-guler
