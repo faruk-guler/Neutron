@@ -3,7 +3,7 @@ HOSTS=(
 "192.168.44.145:22"
 "192.168.44.146:22"
 "devops.example.com:22"
-"192.168.44.147:5656"
+"192.168.44.147:1445"
 )
 
 # The default port is "22". Custom ports can be given in the sources.ner file.
