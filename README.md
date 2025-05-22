@@ -23,8 +23,9 @@ Neutron Files/
 ├── sources.ner # source list(IP/DNS, servers)
 ├── task.ner    # Optional long commands, scripts)
 
-Packages/
-xxx
+ssh-agent private-key login/
+eval "$(ssh-agent -s)"
+ssh-add /root/.ssh/ansible.key
 
 ~~~
 
