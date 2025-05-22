@@ -23,11 +23,11 @@ Neutron Structure:
 ├── sources.ner # source list(IP/DNS, servers)
 ├── task.ner    # Optional long commands, scripts)
 ~~~
-
+~~~sh
 ## enable ssh-agent private-key login
 eval "$(ssh-agent -s)"
-
 ssh-add /root/.ssh/ansible.key
+~~~
 
 # Requirements:
 - SSH key passphrases
