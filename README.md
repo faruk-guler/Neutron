@@ -24,7 +24,7 @@ Neutron Structure:
 ├── task.ner    # Optional long commands, scripts)
 ~~~
 ~~~sh
-Enable ssh-agent private-key login:
+Start SSH Agent and load the Private key into the agent:
 eval "$(ssh-agent -s)"
 ssh-add /root/.ssh/ansible.key
 ~~~
