@@ -62,8 +62,8 @@ build_ssh_command() {
     local port="$2"
     local additional_opts="${3:-}"
     
-    # StrictHostKeyChecking=no ayarı sabit tutuldu.
-    # Güvenlik riskini unutmayın!
+    # StrictHostKeyChecking=no setting is kept constant.
+    # Don't forget the security risk!
     echo "ssh $additional_opts -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" -i \"$PRIVATE_KEY_FILE\" \"$USER@$host\""
 }
 
