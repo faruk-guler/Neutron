@@ -7,4 +7,4 @@ HOSTS=(
 )
 
 # The default port is "22". Custom ports can be given in the sources.ner file.
-# IP_OR_HOSTNAME:PORT
+# Format: IP_OR_HOSTNAME:PORT
