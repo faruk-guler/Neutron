@@ -26,7 +26,7 @@ Author: faruk-guler
 ~~~sh
 # Start SSH Agent and load the Private key into the agent:
 eval "$(ssh-agent -s)"
-ssh-add /root/.ssh/ansible.key
+ssh-add /root/.ssh/neutron.key
 ~~~
 
 # Requirements:
