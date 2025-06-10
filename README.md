@@ -9,7 +9,7 @@ Only (eval) executes the given expression as a shell string (text).
 
 Author: faruk-guler
 ## Usage:
-> chmod 600 config.ner sources.nut ~/.ssh/neutron.key
+> chmod 600 config.nut sources.nut ~/.ssh/neutron.key
 >
 > chmod 700 main.sh
 > 
