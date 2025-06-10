@@ -6,5 +6,5 @@ HOSTS=(
 "192.168.44.147:1445"
 )
 
-# The default port is "22". Custom ports can be given in the sources.ner file.
+# The default port is "22". Custom ports can be given in the sources.nut file.
 # Format: IP_OR_HOSTNAME:PORT
