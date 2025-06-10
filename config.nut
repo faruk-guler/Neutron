@@ -1,4 +1,4 @@
-# SSH credentials
+# SSH credentials.
 USER="root"
 PRIVATE_KEY_FILE="/root/.ssh/neutron.key"
 
