@@ -2,5 +2,6 @@ commands:
   - "ls -la /home"
   - "df -h"
   - "sudo systemctl status nginx"
+  - "sudo apt install neofetch"
 
   # coming soon :(
