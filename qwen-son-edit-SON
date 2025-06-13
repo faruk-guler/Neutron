@@ -37,11 +37,11 @@ if [[ $- == *i* ]]; then
 fi
 
 # Load configuration files
-source config.nut || { echo -e "${RED}Error: config.nut not found! Please create it and enter your SSH credentials.${NC}"; exit 1; }
-source sources.nut || { echo -e "${RED}Error: sources.nut not found! Please create it and enter your server list.${NC}"; exit 1; }
+source config.ntr || { echo -e "${RED}Error: config.ntr not found! Please create it and enter your SSH credentials.${NC}"; exit 1; }
+source sources.ntr || { echo -e "${RED}Error: sources.ntr not found! Please create it and enter your server list.${NC}"; exit 1; }
 
-[ -z "${HOSTS+x}" ] && { echo "Error: HOSTS not defined in sources.nut" >&2; exit 1; }
-[ -z "${USER+x}" ] && { echo "Error: USER not defined in config.nut" >&2; exit 1; }
+[ -z "${HOSTS+x}" ] && { echo "Error: HOSTS not defined in sources.ntr" >&2; exit 1; }
+[ -z "${USER+x}" ] && { echo "Error: USER not defined in config.ntr" >&2; exit 1; }
 
 # Initialize session data
 declare -A current_dir host_ports
@@ -76,7 +76,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
             if [ -n "$PRIVATE_KEY_FILE" ] && [ -f "$PRIVATE_KEY_FILE" ]; then
                 ssh_cmd="$ssh_base -i \"$PRIVATE_KEY_FILE\""
             else
-                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.nut.${NC}"
+                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ntr.${NC}"
                 continue
             fi
 
@@ -109,7 +109,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
             if [ -n "$PRIVATE_KEY_FILE" ] && [ -f "$PRIVATE_KEY_FILE" ]; then
                 scp_cmd="$scp_base -i \"$PRIVATE_KEY_FILE\""
             else
-                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.nut.${NC}"
+                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ntr.${NC}"
                 continue
             fi
 
@@ -158,7 +158,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
             if [ -n "$PRIVATE_KEY_FILE" ] && [ -f "$PRIVATE_KEY_FILE" ]; then
                 scp_cmd="$scp_base -i \"$PRIVATE_KEY_FILE\""
             else
-                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.nut.${NC}"
+                echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ntr.${NC}"
                 continue
             fi
 
@@ -206,7 +206,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         if [ -n "$PRIVATE_KEY_FILE" ] && [ -f "$PRIVATE_KEY_FILE" ]; then
             ssh_cmd="$ssh_base -i \"$PRIVATE_KEY_FILE\""
         else
-            echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.nut.${NC}"
+            echo -e "${YELLOW}Error: No private key file specified for $host! Set PRIVATE_KEY_FILE in config.ntr.${NC}"
             continue
         fi
 
