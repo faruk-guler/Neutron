@@ -5,6 +5,8 @@
 
 It is a lightweight, fast, and Powerful For security reasons, it will only support connection via SSH key.
 
+Support for Windows systems has been discontinued.
+
 Only (eval) executes the given expression as a shell string (text).
 
 Author: faruk-guler
