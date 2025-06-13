@@ -21,7 +21,7 @@ Author: faruk-guler
 ~~~sh
 # Neutron Structure:
 ├── config.ntr  # Server information (port, credentials)
-├── main.sh     # Main command (Python runs commands)
+├── main.sh     # Main tool (bash runs commands)
 ├── sources.ntr # source list(IP/DNS, servers)
 ├── task.ntr    # Optional long commands, scripts)
 ~~~
