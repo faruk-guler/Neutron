@@ -9,19 +9,19 @@ Only (eval) executes the given expression as a shell string (text).
 
 Author: faruk-guler
 ## Usage:
-> chmod 600 config.nut sources.nut ~/.ssh/neutron.key
+> chmod 600 config.ntr sources.ntr ~/.ssh/neutron.key
 >
 > chmod 700 main.sh
 > 
 > ./main.sh
 > 
-> ./main.sh task.nut # coming soon :(
+> ./main.sh task.ntr # coming soon :(
 ~~~sh
 # Neutron Structure:
-├── config.nut  # Server information (port, credentials)
+├── config.ntr  # Server information (port, credentials)
 ├── main.sh     # Main command (Python runs commands)
-├── sources.nut # source list(IP/DNS, servers)
-├── task.nut    # Optional long commands, scripts)
+├── sources.ntr # source list(IP/DNS, servers)
+├── task.ntr    # Optional long commands, scripts)
 ~~~
 ~~~sh
 # Start SSH Agent and load the Private key into the agent:
