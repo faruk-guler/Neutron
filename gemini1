@@ -88,7 +88,16 @@ build_ssh_cmd() {
     local port="$2"
     local options="$3"
 
-    echo "ssh $options -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p \"$port\" -i \"$PRIVATE_KEY_FILE\" \"$USER@$host_or_ip\""
+    # Use bash array for arguments to avoid eval issues with complex strings
+    local -a ssh_args=(
+        $options
+        -o ConnectTimeout=3
+        -o StrictHostKeyChecking=no # Consider removing this for production use
+        -p "$port"
+        -i "$PRIVATE_KEY_FILE"
+        "$USER@$host_or_ip"
+    )
+    echo "${ssh_args[@]}" # Return arguments as a string for later use with `eval` or direct execution
 }
 
 # SCP command builder function
@@ -97,17 +106,35 @@ build_scp_cmd() {
     local port="$2"
     local options="$3"
 
-    echo "scp $options -P \"$port\" -o StrictHostKeyChecking=no -i \"$PRIVATE_KEY_FILE\""
+    local -a scp_args=(
+        $options
+        -P "$port"
+        -o StrictHostKeyChecking=no # Consider removing this for production use
+        -i "$PRIVATE_KEY_FILE"
+    )
+    echo "${scp_args[@]}" # Return arguments as a string for later use with `eval`
 }
 
 # Initialize session data
-declare -A current_dir host_ports # current_dir key is the host_or_ip from sources.ntr
-declare -A outputs # outputs key is also the host_or_ip from sources.ntr
+declare -A current_dir host_ports host_names outputs # current_dir key is the host_or_ip from sources.ntr
 
+# Initialize current_dir for each host and fetch hostnames once
 for host_port_entry in "${HOSTS[@]}"; do
     IFS=: read host_or_ip port <<< "$host_port_entry"
     current_dir["$host_or_ip"]="/tmp" # Initialize current_dir for each host
-    host_ports["$host_or_ip"]="$host_or_ip:$port" # Store original host and port for building commands
+    host_ports["$host_or_ip"]="$port" # Store only the port, host_or_ip is the key
+
+    # Fetch hostname once at startup
+    # 'local' keyword removed as it's not inside a function
+    ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
+    remote_hostname=$(ssh "${ssh_cmd_arr[@]}" "hostname" 2>/dev/null) # Execute directly
+
+    if [ -z "$remote_hostname" ]; then
+        echo -e "${YELLOW}Warning: Could not get hostname for $host_or_ip. Using original target for display.${NC}" >&2
+        host_names["$host_or_ip"]="$host_or_ip"
+    else
+        host_names["$host_or_ip"]="$remote_hostname"
+    fi
 done
 
 # Clean up temporary files on exit
@@ -131,12 +158,17 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
     # Handle "cd" command
     if [[ "$cmd" =~ ^cd ]]; then
         dir="${cmd#cd }"
-        for host_or_ip in "${!current_dir[@]}"; do # Iterate over hosts defined in sources.ntr
-            IFS=: read _ port <<< "${host_ports[$host_or_ip]}"
-            ssh_cmd=$(build_ssh_cmd "$host_or_ip" "$port" "")
+        for host_or_ip in "${!current_dir[@]}"; do
+            port="${host_ports[$host_or_ip]}"
+            # 'local' keyword removed here, as it's not inside a function
+            ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" ""))
 
-            eval "$ssh_cmd \"test -d \\\"$dir\\\"\"" && current_dir["$host_or_ip"]="$dir" || \
-                echo -e "${YELLOW}Warning: Directory $dir does not exist on $host_or_ip.${NC}"
+            # Execute cd and check its success directly
+            if ssh "${ssh_cmd_arr[@]}" "test -d \"$dir\" && cd \"$dir\""; then
+                current_dir["$host_or_ip"]="$dir"
+            else
+                echo -e "${YELLOW}Warning: Directory $dir does not exist or could not be changed on ${host_names[$host_or_ip]}.${NC}"
+            fi
         done
         continue
     fi
@@ -153,16 +185,16 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         fi
 
         for host_or_ip in "${!current_dir[@]}"; do
-            IFS=: read _ port <<< "${host_ports[$host_or_ip]}"
+            port="${host_ports[$host_or_ip]}"
+            echo -e "${GREEN}Uploading $local_path to ${host_names[$host_or_ip]}:${remote_path}${NC}"
 
-            echo -e "${GREEN}Uploading $local_path to $host_or_ip:${remote_path}${NC}"
-
-            scp_cmd=$(build_scp_cmd "$host_or_ip" "$port" "")
+            local -a scp_cmd_arr=($(build_scp_cmd "$host_or_ip" "$port" ""))
 
             if [ -d "$local_path" ]; then
-                eval "$scp_cmd -r \"$local_path\" \"$USER@$host_or_ip:$remote_path\" &"
+                # Direct execution without eval for scp as it's safer
+                scp "${scp_cmd_arr[@]}" -r "$local_path" "$USER@$host_or_ip:$remote_path" &
             else
-                eval "$scp_cmd \"$local_path\" \"$USER@$host_or_ip:$remote_path\" &"
+                scp "${scp_cmd_arr[@]}" "$local_path" "$USER@$host_or_ip:$remote_path" &
             fi
             jobs["$host_or_ip"]="$!"
         done
@@ -171,9 +203,10 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         for host_or_ip in "${!jobs[@]}"; do
             wait "${jobs[$host_or_ip]}"
             if [ $? -eq 0 ]; then
-                echo -e "${GREEN}Successfully uploaded $local_path to $host_or_ip${NC}"
+                echo -e "${GREEN}Successfully uploaded $local_path to ${host_names[$host_or_ip]}${NC}"
             else
-                echo -e "${RED}Failed to upload $local_path to $host_or_ip${NC}"
+                echo -e "${RED}Failed to upload $local_path to ${host_names[$host_or_ip]}${NC}"
+            C
             fi
         done
         continue
@@ -191,40 +224,27 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         }
 
         for host_or_ip in "${!current_dir[@]}"; do
-            IFS=: read _ port <<< "${host_ports[$host_or_ip]}"
+            port="${host_ports[$host_or_ip]}"
+            echo -e "${GREEN}Downloading $remote_path from ${host_names[$host_or_ip]} to $local_dir/${NC}"
 
-            echo -e "${GREEN}Downloading $remote_path from $host_or_ip to $local_dir/${NC}"
+            local -a scp_cmd_arr=($(build_scp_cmd "$host_or_ip" "$port" ""))
+            local -a ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" ""))
 
-            scp_cmd=$(build_scp_cmd "$host_or_ip" "$port" "")
-
-            # Get hostname for local directory naming
-            remote_hostname_cmd="hostname"
-
-            ssh_info_cmd=$(build_ssh_cmd "$host_or_ip" "$port" "-n")
-            remote_hostname=$(eval "$ssh_info_cmd \"$remote_hostname_cmd\" 2>/dev/null")
-
-            if [ -z "$remote_hostname" ]; then
-                echo -e "${YELLOW}Warning: Could not get hostname for $host_or_ip. Using original target for directory name.${NC}"
-                remote_hostname="$host_or_ip"
-            fi
-
-            # Directory name will now only use the hostname
-            target_dir="$local_dir/${remote_hostname}"
+            target_dir="$local_dir/${host_names[$host_or_ip]}"
             mkdir -p "$target_dir" 2>/dev/null || {
-                echo -e "${RED}Error: Cannot create directory $target_dir for $host_or_ip${NC}"
+                echo -e "${RED}Error: Cannot create directory $target_dir for ${host_names[$host_or_ip]}${NC}"
                 continue
             }
 
             target_file="$target_dir/$(basename "$remote_path")"
 
             # Check if remote path is a directory
-            ssh_check_dir_cmd=$(build_ssh_cmd "$host_or_ip" "$port" "")
-            is_dir=$(eval "$ssh_check_dir_cmd \"[ -d \\\"$remote_path\\\" ] && echo 'yes' || echo 'no'\"" 2>/dev/null)
+            is_dir=$(ssh "${ssh_cmd_arr[@]}" "[ -d \"$remote_path\" ] && echo 'yes' || echo 'no'" 2>/dev/null)
 
             if [ "$is_dir" = "yes" ]; then
-                eval "$scp_cmd -r \"$USER@$host_or_ip:$remote_path\" \"$target_dir\" &" # SCP a directory directly into target_dir
+                scp "${scp_cmd_arr[@]}" -r "$USER@$host_or_ip:$remote_path" "$target_dir" & # SCP a directory directly into target_dir
             else
-                eval "$scp_cmd \"$USER@$host_or_ip:$remote_path\" \"$target_file\" &"
+                scp "${scp_cmd_arr[@]}" "$USER@$host_or_ip:$remote_path" "$target_file" &
             fi
 
             jobs["$host_or_ip"]="$!"
@@ -233,78 +253,56 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         for host_or_ip in "${!jobs[@]}"; do
             wait "${jobs[$host_or_ip]}"
             if [ $? -eq 0 ]; then
-                echo -e "${GREEN}Successfully downloaded $remote_path from $host_or_ip${NC}"
+                echo -e "${GREEN}Successfully downloaded $remote_path from ${host_names[$host_or_ip]}${NC}"
             else
-                echo -e "${RED}Failed to download $remote_path from $host_or_ip${NC}"
+                echo -e "${RED}Failed to download $remote_path from ${host_names[$host_or_ip]}${NC}"
             fi
         done
         continue
     fi
 
     # Handle all other commands
-    first=true
+    first_output_block=true
     for host_or_ip in "${!current_dir[@]}"; do
-        IFS=: read _ port <<< "${host_ports[$host_or_ip]}"
+        port="${host_ports[$host_or_ip]}"
         temp_file=$(mktemp)
         outputs["$host_or_ip"]="$temp_file"
 
-        # Get hostname for output header for THIS host
-        remote_hostname_cmd="hostname"
-
-        ssh_info_cmd=$(build_ssh_cmd "$host_or_ip" "$port" "-n")
-        remote_hostname=$(eval "$ssh_info_cmd \"$remote_hostname_cmd\" 2>/dev/null")
-
-        if [ -z "$remote_hostname" ]; then
-            remote_hostname="$host_or_ip"
-            echo -e "${YELLOW}Warning: Could not get hostname for $host_or_ip. Displaying original target.${NC}" >&2
-        fi
-
-        # Actual command to run on remote host
-        ssh_cmd=$(build_ssh_cmd "$host_or_ip" "$port" "-n")
+        # REMOVED 'local' keyword here, as it's not inside a function
+        ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
         remote_cmd="cd \"${current_dir[$host_or_ip]}\" && $cmd"
-        eval "$ssh_cmd \"$remote_cmd\" > \"$temp_file\" 2>&1 &"
+
+        # Execute ssh command directly using the array
+        ssh "${ssh_cmd_arr[@]}" "$remote_cmd" > "$temp_file" 2>&1 &
         jobs["$host_or_ip"]="$!"
     done
 
     # Print results from all hosts
-    first=true
+    first_output_block=true
     for host_or_ip in "${!jobs[@]}"; do
-        wait "${jobs[$host_or_ip]}"
+        wait_status=0 # Initialize status for current job
+        wait "${jobs[$host_or_ip]}" || wait_status=$? # Capture exit status of wait
 
-        # Re-fetch hostname for display (in case of async execution finishing order)
-        IFS=: read _ port <<< "${host_ports[$host_or_ip]}"
-
-        remote_hostname_cmd="hostname"
-        ssh_info_cmd=$(build_ssh_cmd "$host_or_ip" "$port" "-n")
-        remote_hostname=$(eval "$ssh_info_cmd \"$remote_hostname_cmd\" 2>/dev/null")
-
-        # Fallback if dynamic info isn't available
-        if [ -z "$remote_hostname" ]; then
-            remote_hostname="$host_or_ip"
-        fi
+        # Use the pre-fetched hostname
+        remote_display_name="${host_names[$host_or_ip]}"
 
         mapfile -t lines < "${outputs[$host_or_ip]}"
 
-        # Only print if there's output OR if the command exited with an error status (even if no stdout/stderr)
-        # This handles cases like `touch` which produce no stdout but succeed (exit status 0)
-        # Or commands that fail but produce no stdout/stderr.
-        if [ ${#lines[@]} -gt 0 ] || [ $? -ne 0 ]; then
-            if ! $first; then
+        # Only print if there's output OR if the command exited with a non-zero status
+        if [ ${#lines[@]} -gt 0 ] || [ $wait_status -ne 0 ]; then
+            if ! $first_output_block; then
                 echo ""
             fi
-            echo -e "${BLUE}host: ${remote_hostname}${NC}" # No extra space before NC
-            echo -e "${BLUE}--------------------------------------------${NC}" # Separator line
+            echo -e "${BLUE}host: ${remote_display_name}${NC}"
+            echo -e "${BLUE}--------------------------------------------${NC}"
 
-            # Print output lines without the leading '#' or extra blank line
-            # Ensure the first line is properly colored without an extra space before the hash if it exists
-            # We'll just print lines as they are from the remote command.
             if [ ${#lines[@]} -gt 0 ]; then
-                printf "%s\n" "${lines[@]}" # Print all lines directly
+                printf "%s\n" "${lines[@]}"
             fi
 
-            echo -e "${RED}--------------------------------------------${NC}" # Bottom separator
+            echo -e "${RED}--------------------------------------------${NC}"
         fi
         rm "${outputs[$host_or_ip]}"
-        first=false
+        first_output_block=false
     done
 done
