@@ -68,17 +68,10 @@ parse_host_port() {
     IFS=: read -r host_ref port_ref <<< "$host_port_entry"
 }
 
-# Parse command and arguments
+# Parse command and arguments (simplified)
 parse_command_args() {
     local cmd="$1"
-    local command_type="${cmd%% *}"
-    local args="${cmd#* }"
-    
-    if [[ "$command_type" == "$cmd" ]]; then
-        args=""
-    fi
-    
-    echo "$command_type" "$args"
+    echo "${cmd%% *}" "${cmd#* }"
 }
 
 # Load and validate configuration
@@ -212,22 +205,26 @@ initialize_connection_pool() {
     log_success "Connection pool initialized with $g_connection_pool_size hosts"
 }
 
-# Fetch hostname for display
-fetch_hostname() {
+# Fetch hostname for display (lazy loading)
+get_hostname() {
     local host_or_ip="$1"
-    local port="$2"
     
-    local hostname=$(execute_ssh_command "$host_or_ip" "$port" "hostname" "-n")
-    
-    if [[ -z "$hostname" ]]; then
-        log_warning "Warning: Could not get hostname for $host_or_ip. Using IP for display."
-        hostname="$host_or_ip"
+    # Return cached hostname if exists
+    if [[ -n "${g_host_names[$host_or_ip]}" ]]; then
+        echo "${g_host_names[$host_or_ip]}"
+        return
     fi
     
+    # Fetch and cache hostname
+    local port="${g_host_ports[$host_or_ip]}"
+    local hostname=$(execute_ssh_command "$host_or_ip" "$port" "hostname" "-n" 2>/dev/null)
+    
+    hostname="${hostname:-$host_or_ip}"
+    g_host_names["$host_or_ip"]="$hostname"
     echo "$hostname"
 }
 
-# Initialize session data
+# Initialize session data (simplified)
 initialize_session_data() {
     for host_port_entry in "${HOSTS[@]}"; do
         local host_or_ip port
@@ -235,7 +232,7 @@ initialize_session_data() {
         
         g_current_dir["$host_or_ip"]="/tmp"
         g_host_ports["$host_or_ip"]="$port"
-        g_host_names["$host_or_ip"]=$(fetch_hostname "$host_or_ip" "$port")
+        # Hostname will be fetched lazily when needed
     done
 }
 
@@ -280,83 +277,56 @@ handle_cd_command() {
 
 handle_put_command() {
     local args="$1"
-    local tokens=($args)
+    read -ra tokens <<< "$args"
     local local_path="${tokens[0]}"
     local remote_path="${tokens[1]:-/tmp}"
     
-    if [[ ! -e "$local_path" ]]; then
-        log_error "Error: Local path $local_path does not exist."
-        return 1
-    fi
+    [[ ! -e "$local_path" ]] && { log_error "Error: Local path $local_path does not exist."; return 1; }
     
-    # Clear previous jobs
-    unset g_jobs
-    declare -A g_jobs
+    unset g_jobs; declare -A g_jobs
+    local scp_option=$([[ -d "$local_path" ]] && echo "-r" || echo "")
     
     for host_or_ip in "${!g_current_dir[@]}"; do
         local port="${g_host_ports[$host_or_ip]}"
-        local hostname="${g_host_names[$host_or_ip]}"
+        log_info "Uploading $local_path to $(get_hostname "$host_or_ip"):$remote_path"
         
-        log_info "Uploading $local_path to $hostname:$remote_path"
-        
-        local scp_cmd=$(build_scp_command "$host_or_ip" "$port" "")
-        
-        if [[ -d "$local_path" ]]; then
-            $scp_cmd -r "$local_path" "$USER@$host_or_ip:$remote_path" &
-        else
-            $scp_cmd "$local_path" "$USER@$host_or_ip:$remote_path" &
-        fi
-        
+        $(build_scp_command "$host_or_ip" "$port" "") $scp_option "$local_path" "$USER@$host_or_ip:$remote_path" &
         g_jobs["$host_or_ip"]="$!"
     done
     
-    # Wait for all transfers
     wait_for_jobs "upload" "$local_path"
 }
 
 handle_get_command() {
     local args="$1"
-    local tokens=($args)
+    read -ra tokens <<< "$args"
     local remote_path="${tokens[0]}"
     local local_dir="${tokens[1]:-./downloads}"
     
-    if ! mkdir -p "$local_dir" 2>/dev/null; then
-        log_error "Error: Cannot create or access directory $local_dir"
-        return 1
-    fi
+    mkdir -p "$local_dir" 2>/dev/null || { log_error "Error: Cannot create directory $local_dir"; return 1; }
     
-    # Clear previous jobs
-    unset g_jobs
-    declare -A g_jobs
+    unset g_jobs; declare -A g_jobs
     
     for host_or_ip in "${!g_current_dir[@]}"; do
         local port="${g_host_ports[$host_or_ip]}"
-        local hostname="${g_host_names[$host_or_ip]}"
-        
-        log_info "Downloading $remote_path from $hostname to $local_dir/"
-        
-        local scp_cmd=$(build_scp_command "$host_or_ip" "$port" "")
+        local hostname=$(get_hostname "$host_or_ip")
         local target_dir="$local_dir/$hostname"
         
-        if ! mkdir -p "$target_dir" 2>/dev/null; then
-            log_error "Error: Cannot create directory $target_dir for $hostname"
-            continue
-        fi
+        log_info "Downloading $remote_path from $hostname to $local_dir/"
+        mkdir -p "$target_dir" 2>/dev/null || { log_error "Cannot create directory $target_dir"; continue; }
         
-        # Check if remote path is directory
-        local is_dir=$(execute_ssh_command "$host_or_ip" "$port" "[ -d \"$remote_path\" ] && echo 'yes' || echo 'no'")
+        local scp_cmd=$(build_scp_command "$host_or_ip" "$port" "")
+        local is_dir=$(execute_ssh_command "$host_or_ip" "$port" "[ -d \"$remote_path\" ] && echo 'yes' || echo 'no'" 2>/dev/null)
         
         if [[ "$is_dir" == "yes" ]]; then
             $scp_cmd -r "$USER@$host_or_ip:$remote_path" "$target_dir" &
         else
-            local target_file="$target_dir/$(basename "$remote_path")"
-            $scp_cmd "$USER@$host_or_ip:$remote_path" "$target_file" &
+            $scp_cmd "$USER@$host_or_ip:$remote_path" "$target_dir/$(basename "$remote_path")" &
         fi
         
         g_jobs["$host_or_ip"]="$!"
     done
     
-    # Wait for all transfers
     wait_for_jobs "download" "$remote_path"
 }
 
