@@ -223,7 +223,6 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
     [ "$cmd" = "exit" ] && break
 
     # Declare jobs array here for each command cycle
-    unset -v jobs
     declare -A jobs
 
     # Handle "cd" command
