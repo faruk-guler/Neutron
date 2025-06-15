@@ -105,7 +105,7 @@ declare -A current_dir host_ports
 
 for host_port in "${HOSTS[@]}"; do
     IFS=: read host port <<< "$host_port"
-    current_dir["$host"]="/root"
+    current_dir["$host"]="/tmp"
     host_ports["$host"]="$host:$port"
 done
 
@@ -140,7 +140,7 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
     if [[ "$cmd" =~ ^put ]]; then
         IFS=' ' read -ra tokens <<< "${cmd#put }"
         local_path="${tokens[0]}"
-        remote_path="${tokens[1]:-/root}"
+        remote_path="${tokens[1]:-/tmp}"
 
         if [ ! -e "$local_path" ]; then
             echo -e "${RED}Error: Local path $local_path does not exist.${NC}"
