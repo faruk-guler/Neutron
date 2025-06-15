@@ -262,9 +262,22 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         fi
 
         echo -e "${BLUE}----------- $host_name -----------${NC}"
-        mapfile -t lines < "${outputs[$host]}"
-        echo -e "${GREEN}${lines[0]} ${CYAN}#${NC}"
-        printf "%s\n" "${lines[@]:1}"
+        
+        # Read output content and handle empty/single line outputs
+        if [ -s "${outputs[$host]}" ]; then
+            mapfile -t lines < "${outputs[$host]}"
+            if [ ${#lines[@]} -eq 0 ]; then
+                echo -e "${YELLOW}(No output)${NC}"
+            elif [ ${#lines[@]} -eq 1 ]; then
+                echo -e "${GREEN}${lines[0]}${NC}"
+            else
+                echo -e "${GREEN}${lines[0]} ${CYAN}#${NC}"
+                printf "%s\n" "${lines[@]:1}"
+            fi
+        else
+            echo -e "${YELLOW}(No output)${NC}"
+        fi
+        
         echo -e "${BLUE}--------------------------------------------${NC}"
         rm "${outputs[$host]}"
         first=false
