@@ -5,7 +5,7 @@
 
 It is a lightweight, fast, and Powerful For security reasons, it will only support connection via SSH key.
 
-StrictHostKeyChecking=no
+"StrictHostKeyChecking=no"
 Disables host key verification on SSH connections. This can create a MITM (Man-in-the-Middle) vuln.
 
 Only for Linux systems. Support for Windows systems has been discontinued.
