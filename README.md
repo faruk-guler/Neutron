@@ -22,9 +22,9 @@ Author: faruk-guler
 > 
 > ./main.sh task.ntr # coming soon :(
 > 
-> shell # put /local/path/file.txt /remote/path/  # Paralel upload
+> shell # put /local/path/file.txt /remote/path/  # Parallel upload
 > 
-> shell # get /var/log/app.log ./logs/  # Paralel down.
+> shell # get /var/log/app.log ./logs/  # Parallel down.
 ~~~sh
 # Neutron Structure:
 ├── config.ntr  # Server information (port, credentials)
