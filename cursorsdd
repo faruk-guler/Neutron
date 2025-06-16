@@ -11,24 +11,61 @@ readonly NC='\033[0m'
 # Constants
 readonly HISTORY_FILE="$HOME/.neutron_history"
 readonly SSH_CONTROL_PATH="$HOME/.ssh/neutron-%r@%h:%p"
+# Consistent SSH timeout for all connections for better reliability
+readonly SSH_CONNECT_TIMEOUT_SECONDS=10 
+# SSH master options - ControlMaster, ControlPath, ControlPersist
 readonly SSH_MASTER_OPTIONS="-o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=60s"
-readonly MAX_POOL_SIZE=10
+# Maximum theoretical size for connection pool (currently not actively enforced, but defines intent)
+readonly MAX_POOL_SIZE=10 
+
+# Global arrays for resource tracking
+declare -A temp_files_registry
+declare -A connection_pool
+declare -A current_dir
+declare -A host_ports
+declare -A host_names
+declare -A outputs
+declare -A jobs
+connection_pool_size=0
+
+# Resource management functions
+cleanup_temp_file() {
+    local temp_file="$1"
+    [ -n "$temp_file" ] && [ -f "$temp_file" ] && rm -f "$temp_file" 2>/dev/null
+    unset temp_files_registry["$temp_file"]
+}
+
+cleanup_all_temp_files() {
+    for temp_file in "${!temp_files_registry[@]}"; do
+        cleanup_temp_file "$temp_file"
+    done
+}
+
+create_temp_file() {
+    local temp_file
+    temp_file=$(mktemp) || {
+        echo -e "${RED}Error: Failed to create temporary file${NC}" >&2
+        return 1
+    }
+    temp_files_registry["$temp_file"]=1
+    echo "$temp_file"
+}
 
 # Banner
 print_banner() {
-    echo -e "${CYAN}###########################################################${NC}
-${GREEN}# Neutron v10 ${NC}
-# Lightweight and Powerful automation tool for Linux/Unix
-# Page: www.farukguler.com github.com/faruk-guler
-# Author: faruk-guler
-
-${YELLOW}Neutron Usage:${NC}
-${GREEN}cd <directory>${NC}          : Change directory on all remote hosts
-${GREEN}put <local_path> [path]${NC} : Upload file/directory to all remote hosts (parallel)
-${GREEN}get <remote_path> [dir]${NC} : Download file/directory from all remote hosts (parallel)
-${GREEN}<any_shell_cmd>${NC}         : Run shell command on all remote hosts
-${RED}exit${NC}                    : Exit Neutron
-${CYAN}###########################################################${NC}"
+    echo -e "${CYAN}###########################################################${NC}" >&2
+    echo -e "${GREEN}# Neutron v10 - Resource Management Fixed ${NC}" >&2
+    echo -e "# Lightweight and Powerful automation tool for Linux/Unix" >&2
+    echo -e "# Page: www.farukguler.com github.com/faruk-guler" >&2
+    echo -e "# Author: faruk-guler" >&2
+    echo >&2
+    echo -e "${YELLOW}Neutron Usage:${NC}" >&2
+    echo -e "${GREEN}cd <directory>${NC}            : Change directory on all remote hosts" >&2
+    echo -e "${GREEN}put <local_path> [path]${NC} : Upload file/directory to all remote hosts (parallel)" >&2
+    echo -e "${GREEN}get <remote_path> [dir]${NC} : Download file/directory from all remote hosts (parallel)" >&2
+    echo -e "${GREEN}<any_shell_cmd>${NC}           : Run shell command on all remote hosts" >&2
+    echo -e "${RED}exit${NC}                      : Exit Neutron" >&2
+    echo -e "${CYAN}###########################################################${NC}" >&2
 }
 
 # Initialize history file
@@ -47,11 +84,11 @@ setup_readline() {
 
 # Load configuration
 load_config() {
-    source config.ntr || { echo -e "${RED}Error: config.ntr not found! Please create it and enter your SSH credentials.${NC}"; exit 1; }
-    source sources.ntr || { echo -e "${RED}Error: sources.ntr not found! Please create it and enter your server list.${NC}"; exit 1; }
+    source config.ntr || { echo -e "${RED}Error: config.ntr not found! Please create it and enter your SSH credentials.${NC}" >&2; exit 1; }
+    source sources.ntr || { echo -e "${RED}Error: sources.ntr not found! Please create it and enter your server list.${NC}" >&2; exit 1; }
 
-    [ -z "${HOSTS+x}" ] && { echo "Error: HOSTS not defined in sources.ntr" >&2; exit 1; }
-    [ -z "${USER+x}" ] && { echo "Error: USER not defined in config.ntr" >&2; exit 1; }
+    [ -z "${HOSTS+x}" ] && { echo -e "${RED}Error: HOSTS not defined in sources.ntr${NC}" >&2; exit 1; }
+    [ -z "${USER+x}" ] && { echo -e "${RED}Error: USER not defined in config.ntr${NC}" >&2; exit 1; }
 }
 
 # Validate private key
@@ -78,7 +115,7 @@ setup_ssh_multiplexing() {
 
     if ! ssh -O check -o ControlPath="$SSH_CONTROL_PATH" "$USER@$host_or_ip" >/dev/null 2>&1; then
         ssh $SSH_MASTER_OPTIONS \
-            -o ConnectTimeout=10 \
+            -o ConnectTimeout="$SSH_CONNECT_TIMEOUT_SECONDS" \
             -o StrictHostKeyChecking=no \
             -p "$port" \
             -i "$PRIVATE_KEY_FILE" \
@@ -95,7 +132,8 @@ build_ssh_cmd() {
     local port="$2"
     local options="$3"
 
-    echo "$SSH_MASTER_OPTIONS $options -o ConnectTimeout=3 -o StrictHostKeyChecking=no -p $port -i $PRIVATE_KEY_FILE $USER@$host_or_ip"
+    # Use the consistent SSH_CONNECT_TIMEOUT_SECONDS
+    echo "$SSH_MASTER_OPTIONS $options -o ConnectTimeout=$SSH_CONNECT_TIMEOUT_SECONDS -o StrictHostKeyChecking=no -p $port -i $PRIVATE_KEY_FILE $USER@$host_or_ip"
 }
 
 build_scp_cmd() {
@@ -103,15 +141,13 @@ build_scp_cmd() {
     local port="$2"
     local options="$3"
 
-    echo "$SSH_MASTER_OPTIONS $options -P $port -o StrictHostKeyChecking=no -i $PRIVATE_KEY_FILE"
+    # Use the consistent SSH_CONNECT_TIMEOUT_SECONDS for SCP as well
+    echo "$SSH_MASTER_OPTIONS $options -o ConnectTimeout=$SSH_CONNECT_TIMEOUT_SECONDS -P $port -o StrictHostKeyChecking=no -i $PRIVATE_KEY_FILE"
 }
 
 # Connection pool management
-declare -A connection_pool
-connection_pool_size=0
-
 init_connection_pool() {
-    echo -e "${BLUE}Initializing SSH connection pool...${NC}"
+    echo -e "${BLUE}Initializing SSH connection pool...${NC}" >&2
 
     for host_port_entry in "${HOSTS[@]}"; do
         IFS=: read host_or_ip port <<< "$host_port_entry"
@@ -120,133 +156,245 @@ init_connection_pool() {
         ((connection_pool_size++))
     done
 
-    echo -e "${GREEN}Connection pool initialized with $connection_pool_size hosts${NC}"
+    echo -e "${GREEN}Connection pool initialized with $connection_pool_size hosts${NC}" >&2
 }
 
 cleanup_ssh_connections() {
-    echo -e "${BLUE}Cleaning up SSH connections...${NC}"
+    echo -e "${BLUE}Cleaning up SSH connections...${NC}" >&2
 
     for host_or_ip in "${!connection_pool[@]}"; do
         ssh -O exit -o ControlPath="$SSH_CONTROL_PATH" "$USER@$host_or_ip" >/dev/null 2>&1
     done
 
     rm -f "$HOME/.ssh/neutron-"* 2>/dev/null
-    echo -e "${GREEN}SSH connections cleaned up${NC}"
+    echo -e "${GREEN}SSH connections cleaned up${NC}" >&2
 }
 
 # Command handlers
 handle_cd() {
-    local dir="${1#cd }"
+    # Extract directory, allowing for spaces if quoted
+    local -a tokens
+    IFS=' ' read -ra tokens <<< "$1"
+    local dir="${tokens[@]:1}" # Get all tokens after "cd"
+
+    if [ -z "$dir" ]; then
+        echo -e "${YELLOW}Usage: cd <directory>${NC}" >&2
+        return 1
+    fi
+
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
-        local ssh_cmd=($(build_ssh_cmd "$host_or_ip" "$port" ""))
+        local ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" ""))
 
-        if ssh "${ssh_cmd[@]}" "test -d \"$dir\" && cd \"$dir\""; then
-            current_dir["$host_or_ip"]="$dir"
+        # Check directory existence and change
+        if ssh "${ssh_cmd_arr[@]}" "test -d \"$dir\""; then
+            if ssh "${ssh_cmd_arr[@]}" "cd \"$dir\""; then
+                current_dir["$host_or_ip"]="$dir"
+            else
+                echo -e "${RED}Error: Could not change directory to '$dir' on ${host_names[$host_or_ip]}. Permissions issue?${NC}" >&2
+            fi
         else
-            echo -e "${YELLOW}Warning: Directory $dir does not exist or could not be changed on ${host_names[$host_or_ip]}.${NC}"
+            echo -e "${YELLOW}Warning: Directory '$dir' does not exist on ${host_names[$host_or_ip]}.${NC}" >&2
         fi
     done
 }
 
 handle_put() {
-    local local_path="${1#put }"
-    local remote_path="${2:-/tmp}"
+    # Use IFS to parse local_path and remote_path robustly, considering quotes
+    local -a tokens
+    # Remove "put " prefix and read into array
+    IFS=' ' read -ra tokens <<< "${1#put }"
 
-    [ ! -e "$local_path" ] && { echo -e "${RED}Error: Local path $local_path does not exist.${NC}"; return; }
+    local local_path="${tokens[0]}"
+    local remote_path="${tokens[1]:-/tmp}" # Default to /tmp if not specified
+
+    if [ -z "$local_path" ]; then
+        echo -e "${YELLOW}Usage: put <local_path> [remote_path]${NC}" >&2
+        return 1
+    fi
+
+    if [ ! -e "$local_path" ]; then
+        echo -e "${RED}Error: Local path '$local_path' does not exist.${NC}" >&2
+        return 1
+    fi
+
+    # Clear jobs array before starting
+    unset jobs
+    declare -A jobs
 
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
-        echo -e "${GREEN}Uploading $local_path to ${host_names[$host_or_ip]}:${remote_path}${NC}"
+        echo -e "${GREEN}Uploading '$local_path' to ${host_names[$host_or_ip]}:${remote_path}${NC}" >&2
 
-        local scp_cmd=($(build_scp_cmd "$host_or_ip" "$port" ""))
+        local scp_cmd_arr=($(build_scp_cmd "$host_or_ip" "$port" ""))
+
         if [ -d "$local_path" ]; then
-            scp "${scp_cmd[@]}" -r "$local_path" "$USER@$host_or_ip:$remote_path" &
+            scp "${scp_cmd_arr[@]}" -r "$local_path" "$USER@$host_or_ip:\"$remote_path\"" &
         else
-            scp "${scp_cmd[@]}" "$local_path" "$USER@$host_or_ip:$remote_path" &
+            scp "${scp_cmd_arr[@]}" "$local_path" "$USER@$host_or_ip:\"$remote_path\"" &
         fi
         jobs["$host_or_ip"]="$!"
     done
 
+    # Wait for all jobs and check results
+    local upload_success=true
     for host_or_ip in "${!jobs[@]}"; do
-        wait "${jobs[$host_or_ip]}"
-        [ $? -eq 0 ] && \
-            echo -e "${GREEN}Successfully uploaded $local_path to ${host_names[$host_or_ip]}${NC}" || \
-            echo -e "${RED}Failed to upload $local_path to ${host_names[$host_or_ip]}${NC}"
+        if wait "${jobs[$host_or_ip]}"; then
+            echo -e "${GREEN}Successfully uploaded '$local_path' to ${host_names[$host_or_ip]}${NC}" >&2
+        else
+            echo -e "${RED}Failed to upload '$local_path' to ${host_names[$host_or_ip]}${NC}" >&2
+            upload_success=false
+        fi
     done
+
+    # Clear jobs array after completion
+    unset jobs
+    declare -A jobs
+
+    return $([[ "$upload_success" == true ]] && echo 0 || echo 1)
 }
 
 handle_get() {
-    local remote_path="${1#get }"
-    local local_dir="${2:-./downloads}"
+    # Use IFS to parse remote_path and local_dir robustly, considering quotes
+    local -a tokens
+    # Remove "get " prefix and read into array
+    IFS=' ' read -ra tokens <<< "${1#get }"
 
-    mkdir -p "$local_dir" 2>/dev/null || { echo -e "${RED}Error: Cannot create or access directory $local_dir${NC}"; return; }
+    local remote_path="${tokens[0]}"
+    local local_dir="${tokens[1]:-./downloads}" # Default to ./downloads if not specified
+
+    if [ -z "$remote_path" ]; then
+        echo -e "${YELLOW}Usage: get <remote_path> [local_directory]${NC}" >&2
+        return 1
+    fi
+
+    if ! mkdir -p "$local_dir" 2>/dev/null; then
+        echo -e "${RED}Error: Cannot create or access directory '$local_dir'${NC}" >&2
+        return 1
+    fi
+
+    # Clear jobs array before starting
+    unset jobs
+    declare -A jobs
 
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
-        echo -e "${GREEN}Downloading $remote_path from ${host_names[$host_or_ip]} to $local_dir/${NC}"
+        echo -e "${GREEN}Downloading '$remote_path' from ${host_names[$host_or_ip]} to '$local_dir/'${NC}" >&2
 
-        local scp_cmd=($(build_scp_cmd "$host_or_ip" "$port" ""))
-        local ssh_cmd=($(build_ssh_cmd "$host_or_ip" "$port" ""))
+        local scp_cmd_arr=($(build_scp_cmd "$host_or_ip" "$port" ""))
+        local ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" ""))
 
-        local target_dir="$local_dir/${host_names[$host_or_ip]}"
-        mkdir -p "$target_dir" 2>/dev/null || { echo -e "${RED}Error: Cannot create directory $target_dir for ${host_names[$host_or_ip]}${NC}"; continue; }
-
-        local target_file="$target_dir/$(basename "$remote_path")"
-        local is_dir=$(ssh "${ssh_cmd[@]}" "[ -d \"$remote_path\" ] && echo 'yes' || echo 'no'" 2>/dev/null)
-
-        if [ "$is_dir" = "yes" ]; then
-            scp "${scp_cmd[@]}" -r "$USER@$host_or_ip:$remote_path" "$target_dir" &
-        else
-            scp "${scp_cmd[@]}" "$USER@$host_or_ip:$remote_path" "$target_file" &
+        local target_host_dir="$local_dir/${host_names[$host_or_ip]}"
+        if ! mkdir -p "$target_host_dir" 2>/dev/null; then
+            echo -e "${RED}Error: Cannot create directory '$target_host_dir' for ${host_names[$host_or_ip]}${NC}" >&2
+            continue
         fi
 
+        # Check if remote path is a directory (use -d for robust check)
+        local is_dir=$(ssh "${ssh_cmd_arr[@]}" "[ -d \"$remote_path\" ] && echo 'yes' || echo 'no'" 2>/dev/null)
+
+        if [ "$is_dir" = "yes" ]; then
+            # If remote is a directory, download into the target_host_dir
+            scp "${scp_cmd_arr[@]}" -r "$USER@$host_or_ip:\"$remote_path\"" "$target_host_dir" &
+        else
+            # If remote is a file, download it directly to target_host_dir
+            # Make sure the target file name is the same as the remote basename
+            local target_file="$target_host_dir/$(basename "$remote_path")"
+            scp "${scp_cmd_arr[@]}" "$USER@$host_or_ip:\"$remote_path\"" "$target_file" &
+        fi
         jobs["$host_or_ip"]="$!"
     done
 
+    # Wait for all jobs and check results
+    local download_success=true
     for host_or_ip in "${!jobs[@]}"; do
-        wait "${jobs[$host_or_ip]}"
-        [ $? -eq 0 ] && \
-            echo -e "${GREEN}Successfully downloaded $remote_path from ${host_names[$host_or_ip]}${NC}" || \
-            echo -e "${RED}Failed to download $remote_path from ${host_names[$host_or_ip]}${NC}"
+        if wait "${jobs[$host_or_ip]}"; then
+            echo -e "${GREEN}Successfully downloaded '$remote_path' from ${host_names[$host_or_ip]}${NC}" >&2
+        else
+            echo -e "${RED}Failed to download '$remote_path' from ${host_names[$host_or_ip]}${NC}" >&2
+            download_success=false
+        fi
     done
+
+    # Clear jobs array after completion
+    unset jobs
+    declare -A jobs
+
+    return $([[ "$download_success" == true ]] && echo 0 || echo 1)
 }
 
 handle_command() {
     local cmd="$1"
     local first_output_block=true
+    local -a temp_files_created
 
+    # Clear jobs and outputs arrays before starting
+    unset jobs outputs
+    declare -A jobs outputs
+
+    # Create temp files and track them
+    for host_or_ip in "${!current_dir[@]}"; do
+        local temp_file
+        temp_file=$(create_temp_file) || {
+            echo -e "${RED}Error: Failed to create temporary file for ${host_names[$host_or_ip]}${NC}" >&2
+            # Cleanup any temp files created so far
+            for tf in "${temp_files_created[@]}"; do
+                cleanup_temp_file "$tf"
+            done
+            return 1
+        }
+        temp_files_created+=("$temp_file")
+        outputs["$host_or_ip"]="$temp_file"
+    done
+
+    # Execute commands on all hosts
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
-        local temp_file=$(mktemp)
-        outputs["$host_or_ip"]="$temp_file"
-
-        local ssh_cmd=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
+        local ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
         local remote_cmd="cd \"${current_dir[$host_or_ip]}\" && $cmd"
 
-        ssh "${ssh_cmd[@]}" "$remote_cmd" > "$temp_file" 2>&1 &
+        ssh "${ssh_cmd_arr[@]}" "$remote_cmd" > "${outputs[$host_or_ip]}" 2>&1 &
         jobs["$host_or_ip"]="$!"
     done
 
+    # Wait for all jobs and process results
     for host_or_ip in "${!jobs[@]}"; do
-        wait_status=0
+        local wait_status=0
         wait "${jobs[$host_or_ip]}" || wait_status=$?
 
         local remote_display_name="${host_names[$host_or_ip]}"
-        mapfile -t lines < "${outputs[$host_or_ip]}"
-
-        if [ ${#lines[@]} -gt 0 ] || [ $wait_status -ne 0 ]; then
-            ! $first_output_block && echo ""
-            echo -e "${BLUE}host: ${remote_display_name}${NC}"
-            echo -e "${BLUE}--------------------------------------------${NC}"
-
-            [ ${#lines[@]} -gt 0 ] && printf "%s\n" "${lines[@]}"
-
-            echo -e "${RED}--------------------------------------------${NC}"
+        local temp_file="${outputs[$host_or_ip]}"
+        
+        # Read output safely
+        local -a lines
+        if [ -f "$temp_file" ]; then
+            mapfile -t lines < "$temp_file"
         fi
-        rm "${outputs[$host_or_ip]}"
+
+        # Print output if there's any or if command failed
+        if [ ${#lines[@]} -gt 0 ] || [ $wait_status -ne 0 ]; then
+            ! $first_output_block && echo "" >&2 # Add a newline between blocks
+            echo -e "${BLUE}host: ${remote_display_name}${NC}" >&2
+            echo -e "${BLUE}--------------------------------------------${NC}" >&2
+
+            if [ ${#lines[@]} -gt 0 ]; then
+                printf "%s\n" "${lines[@]}" >&2
+            fi
+
+            if [ $wait_status -ne 0 ]; then
+                echo -e "${RED}Command failed with exit status $wait_status on ${remote_display_name}${NC}" >&2
+            fi
+            echo -e "${RED}--------------------------------------------${NC}" >&2
+        fi
+
+        # Cleanup temp file immediately after use
+        cleanup_temp_file "$temp_file"
         first_output_block=false
     done
+
+    # Clear arrays after completion
+    unset jobs outputs
+    declare -A jobs outputs
 }
 
 # Initialize hostnames
@@ -256,11 +404,24 @@ init_hostnames() {
         current_dir["$host_or_ip"]="/tmp"
         host_ports["$host_or_ip"]="$port"
 
-        local ssh_cmd=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
-        local remote_hostname=$(ssh "${ssh_cmd[@]}" "hostname" 2>/dev/null)
+        local ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
+        local remote_hostname=$(ssh "${ssh_cmd_arr[@]}" "hostname" 2>/dev/null)
 
         host_names["$host_or_ip"]="${remote_hostname:-$host_or_ip}"
     done
+}
+
+# Comprehensive cleanup function
+comprehensive_cleanup() {
+    echo -e "${BLUE}Performing comprehensive cleanup...${NC}" >&2
+    
+    # Cleanup temp files
+    cleanup_all_temp_files
+    
+    # Cleanup SSH connections
+    cleanup_ssh_connections
+    
+    echo -e "${GREEN}Cleanup completed${NC}" >&2
 }
 
 # Main initialization
@@ -269,12 +430,11 @@ load_config
 validate_private_key "$PRIVATE_KEY_FILE" || exit 1
 
 # Initialize session data
-declare -A current_dir host_ports host_names outputs
 init_connection_pool
 init_hostnames
 
-# Cleanup on exit
-trap 'rm -f "${outputs[@]}"; cleanup_ssh_connections' EXIT
+# Enhanced cleanup on exit - handles all resources
+trap 'comprehensive_cleanup' EXIT INT TERM
 
 # Load command history
 history -r "$HISTORY_FILE"
@@ -288,12 +448,14 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
     [ -z "$cmd" ] && continue
     [ "$cmd" = "exit" ] && break
 
-    declare -A jobs
+    # Clear jobs array for each new command cycle
+    unset jobs
+    declare -A jobs 
 
     case "$cmd" in
-        cd*) handle_cd "$cmd" ;;
-        put*) handle_put $cmd ;;
-        get*) handle_get $cmd ;;
+        cd\ *) handle_cd "$cmd" ;; # More specific pattern matching
+        put\ *) handle_put "$cmd" ;;
+        get\ *) handle_get "$cmd" ;;
         *) handle_command "$cmd" ;;
     esac
 done
