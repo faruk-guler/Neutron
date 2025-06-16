@@ -22,6 +22,7 @@ Author: faruk-guler
 > 
 > ./main.sh task.ntr # coming soon :(
 > shell # put /local/path/file.txt /remote/path/  # Paralel upload
+> 
 > shell # get /var/log/app.log ./logs/  # Paralel down.
 ~~~sh
 # Neutron Structure:
