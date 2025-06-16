@@ -12,49 +12,16 @@ readonly NC='\033[0m'
 readonly HISTORY_FILE="$HOME/.neutron_history"
 readonly SSH_CONTROL_PATH="$HOME/.ssh/neutron-%r@%h:%p"
 # Consistent SSH timeout for all connections for better reliability
-readonly SSH_CONNECT_TIMEOUT_SECONDS=10 
+readonly SSH_CONNECT_TIMEOUT_SECONDS=10
 # SSH master options - ControlMaster, ControlPath, ControlPersist
 readonly SSH_MASTER_OPTIONS="-o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=60s"
 # Maximum theoretical size for connection pool (currently not actively enforced, but defines intent)
-readonly MAX_POOL_SIZE=10 
-
-# Global arrays for resource tracking
-declare -A temp_files_registry
-declare -A connection_pool
-declare -A current_dir
-declare -A host_ports
-declare -A host_names
-declare -A outputs
-declare -A jobs
-connection_pool_size=0
-
-# Resource management functions
-cleanup_temp_file() {
-    local temp_file="$1"
-    [ -n "$temp_file" ] && [ -f "$temp_file" ] && rm -f "$temp_file" 2>/dev/null
-    unset temp_files_registry["$temp_file"]
-}
-
-cleanup_all_temp_files() {
-    for temp_file in "${!temp_files_registry[@]}"; do
-        cleanup_temp_file "$temp_file"
-    done
-}
-
-create_temp_file() {
-    local temp_file
-    temp_file=$(mktemp) || {
-        echo -e "${RED}Error: Failed to create temporary file${NC}" >&2
-        return 1
-    }
-    temp_files_registry["$temp_file"]=1
-    echo "$temp_file"
-}
+readonly MAX_POOL_SIZE=10
 
 # Banner
 print_banner() {
     echo -e "${CYAN}###########################################################${NC}" >&2
-    echo -e "${GREEN}# Neutron v10 - Resource Management Fixed ${NC}" >&2
+    echo -e "${GREEN}# Neutron v10 ${NC}" >&2
     echo -e "# Lightweight and Powerful automation tool for Linux/Unix" >&2
     echo -e "# Page: www.farukguler.com github.com/faruk-guler" >&2
     echo -e "# Author: faruk-guler" >&2
@@ -146,6 +113,9 @@ build_scp_cmd() {
 }
 
 # Connection pool management
+declare -A connection_pool
+connection_pool_size=0
+
 init_connection_pool() {
     echo -e "${BLUE}Initializing SSH connection pool...${NC}" >&2
 
@@ -218,10 +188,6 @@ handle_put() {
         return 1
     fi
 
-    # Clear jobs array before starting
-    unset jobs
-    declare -A jobs
-
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
         echo -e "${GREEN}Uploading '$local_path' to ${host_names[$host_or_ip]}:${remote_path}${NC}" >&2
@@ -236,22 +202,14 @@ handle_put() {
         jobs["$host_or_ip"]="$!"
     done
 
-    # Wait for all jobs and check results
-    local upload_success=true
     for host_or_ip in "${!jobs[@]}"; do
-        if wait "${jobs[$host_or_ip]}"; then
+        wait "${jobs[$host_or_ip]}"
+        if [ $? -eq 0 ]; then
             echo -e "${GREEN}Successfully uploaded '$local_path' to ${host_names[$host_or_ip]}${NC}" >&2
         else
             echo -e "${RED}Failed to upload '$local_path' to ${host_names[$host_or_ip]}${NC}" >&2
-            upload_success=false
         fi
     done
-
-    # Clear jobs array after completion
-    unset jobs
-    declare -A jobs
-
-    return $([[ "$upload_success" == true ]] && echo 0 || echo 1)
 }
 
 handle_get() {
@@ -268,14 +226,7 @@ handle_get() {
         return 1
     fi
 
-    if ! mkdir -p "$local_dir" 2>/dev/null; then
-        echo -e "${RED}Error: Cannot create or access directory '$local_dir'${NC}" >&2
-        return 1
-    fi
-
-    # Clear jobs array before starting
-    unset jobs
-    declare -A jobs
+    mkdir -p "$local_dir" 2>/dev/null || { echo -e "${RED}Error: Cannot create or access directory '$local_dir'${NC}" >&2; return 1; }
 
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
@@ -285,10 +236,7 @@ handle_get() {
         local ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" ""))
 
         local target_host_dir="$local_dir/${host_names[$host_or_ip]}"
-        if ! mkdir -p "$target_host_dir" 2>/dev/null; then
-            echo -e "${RED}Error: Cannot create directory '$target_host_dir' for ${host_names[$host_or_ip]}${NC}" >&2
-            continue
-        fi
+        mkdir -p "$target_host_dir" 2>/dev/null || { echo -e "${RED}Error: Cannot create directory '$target_host_dir' for ${host_names[$host_or_ip]}${NC}" >&2; continue; }
 
         # Check if remote path is a directory (use -d for robust check)
         local is_dir=$(ssh "${ssh_cmd_arr[@]}" "[ -d \"$remote_path\" ] && echo 'yes' || echo 'no'" 2>/dev/null)
@@ -305,80 +253,47 @@ handle_get() {
         jobs["$host_or_ip"]="$!"
     done
 
-    # Wait for all jobs and check results
-    local download_success=true
     for host_or_ip in "${!jobs[@]}"; do
-        if wait "${jobs[$host_or_ip]}"; then
+        wait "${jobs[$host_or_ip]}"
+        if [ $? -eq 0 ]; then
             echo -e "${GREEN}Successfully downloaded '$remote_path' from ${host_names[$host_or_ip]}${NC}" >&2
         else
             echo -e "${RED}Failed to download '$remote_path' from ${host_names[$host_or_ip]}${NC}" >&2
-            download_success=false
         fi
     done
-
-    # Clear jobs array after completion
-    unset jobs
-    declare -A jobs
-
-    return $([[ "$download_success" == true ]] && echo 0 || echo 1)
 }
 
 handle_command() {
     local cmd="$1"
     local first_output_block=true
-    local -a temp_files_created
 
-    # Clear jobs and outputs arrays before starting
-    unset jobs outputs
-    declare -A jobs outputs
-
-    # Create temp files and track them
-    for host_or_ip in "${!current_dir[@]}"; do
-        local temp_file
-        temp_file=$(create_temp_file) || {
-            echo -e "${RED}Error: Failed to create temporary file for ${host_names[$host_or_ip]}${NC}" >&2
-            # Cleanup any temp files created so far
-            for tf in "${temp_files_created[@]}"; do
-                cleanup_temp_file "$tf"
-            done
-            return 1
-        }
-        temp_files_created+=("$temp_file")
-        outputs["$host_or_ip"]="$temp_file"
-    done
-
-    # Execute commands on all hosts
     for host_or_ip in "${!current_dir[@]}"; do
         local port="${host_ports[$host_or_ip]}"
+        local temp_file=$(mktemp)
+        outputs["$host_or_ip"]="$temp_file"
+
         local ssh_cmd_arr=($(build_ssh_cmd "$host_or_ip" "$port" "-n"))
         local remote_cmd="cd \"${current_dir[$host_or_ip]}\" && $cmd"
 
-        ssh "${ssh_cmd_arr[@]}" "$remote_cmd" > "${outputs[$host_or_ip]}" 2>&1 &
+        ssh "${ssh_cmd_arr[@]}" "$remote_cmd" > "$temp_file" 2>&1 &
         jobs["$host_or_ip"]="$!"
     done
 
-    # Wait for all jobs and process results
     for host_or_ip in "${!jobs[@]}"; do
-        local wait_status=0
+        wait_status=0
         wait "${jobs[$host_or_ip]}" || wait_status=$?
 
         local remote_display_name="${host_names[$host_or_ip]}"
-        local temp_file="${outputs[$host_or_ip]}"
-        
-        # Read output safely
-        local -a lines
-        if [ -f "$temp_file" ]; then
-            mapfile -t lines < "$temp_file"
-        fi
+        mapfile -t lines < "${outputs[$host_or_ip]}"
 
         # Print output if there's any or if command failed
         if [ ${#lines[@]} -gt 0 ] || [ $wait_status -ne 0 ]; then
-            ! $first_output_block && echo "" >&2 # Add a newline between blocks
+            ! $first_output_block && echo "" >&2 # Add a newline between blocks, direct to stderr
             echo -e "${BLUE}host: ${remote_display_name}${NC}" >&2
             echo -e "${BLUE}--------------------------------------------${NC}" >&2
 
             if [ ${#lines[@]} -gt 0 ]; then
-                printf "%s\n" "${lines[@]}" >&2
+                printf "%s\n" "${lines[@]}" >&2 # Output actual command results to stderr as well
             fi
 
             if [ $wait_status -ne 0 ]; then
@@ -386,15 +301,9 @@ handle_command() {
             fi
             echo -e "${RED}--------------------------------------------${NC}" >&2
         fi
-
-        # Cleanup temp file immediately after use
-        cleanup_temp_file "$temp_file"
+        rm "${outputs[$host_or_ip]}"
         first_output_block=false
     done
-
-    # Clear arrays after completion
-    unset jobs outputs
-    declare -A jobs outputs
 }
 
 # Initialize hostnames
@@ -411,30 +320,18 @@ init_hostnames() {
     done
 }
 
-# Comprehensive cleanup function
-comprehensive_cleanup() {
-    echo -e "${BLUE}Performing comprehensive cleanup...${NC}" >&2
-    
-    # Cleanup temp files
-    cleanup_all_temp_files
-    
-    # Cleanup SSH connections
-    cleanup_ssh_connections
-    
-    echo -e "${GREEN}Cleanup completed${NC}" >&2
-}
-
 # Main initialization
 setup_readline
 load_config
 validate_private_key "$PRIVATE_KEY_FILE" || exit 1
 
 # Initialize session data
+declare -A current_dir host_ports host_names outputs jobs # 'jobs' declared globally for main loop
 init_connection_pool
 init_hostnames
 
-# Enhanced cleanup on exit - handles all resources
-trap 'comprehensive_cleanup' EXIT INT TERM
+# Cleanup on exit
+trap 'rm -f "${outputs[@]}"; cleanup_ssh_connections' EXIT
 
 # Load command history
 history -r "$HISTORY_FILE"
@@ -449,8 +346,9 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
     [ "$cmd" = "exit" ] && break
 
     # Clear jobs array for each new command cycle
+    # 'jobs' array is now global and reused, so explicitly clear it
     unset jobs
-    declare -A jobs 
+    declare -A jobs
 
     case "$cmd" in
         cd\ *) handle_cd "$cmd" ;; # More specific pattern matching
