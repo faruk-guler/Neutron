@@ -11,7 +11,7 @@ chmod 600 ~/.ssh/neutron.key
 # Deleting a server's old SSH key from the known_hosts file
 ```
 ssh-keygen -f "/root/.ssh/known_hosts" -R "devops.example.com"
-sh-keygen -f "/root/.ssh/known_hosts" -R "192.168.44.145"
+ssh-keygen -f "/root/.ssh/known_hosts" -R "192.168.44.145"
 ```
 
 # Copy SSH Key to Hosts
