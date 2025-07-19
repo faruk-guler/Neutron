@@ -20,7 +20,7 @@ Author: faruk-guler
 > 
 > ./main.sh
 > 
-> ./main.sh task.ntr # coming soon :(
+> ./main.sh xxx.task # coming soon :(
 > 
 > shell # put /local/path/file.txt /remote/path/  # Parallel upload
 > 
