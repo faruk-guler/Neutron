@@ -14,7 +14,7 @@ ssh-keygen -f "/root/.ssh/known_hosts" -R "devops.example.com"
 ssh-keygen -f "/root/.ssh/known_hosts" -R "192.168.44.145"
 ```
 
-# Copy SSH Key to Hosts
+# Copy New SSH Key to Hosts
 ```
 ssh-copy-id -i /root/.ssh/neutron.key.pub root@192.168.44.145
 ssh-copy-id -i /root/.ssh/neutron.key.pub root@192.168.44.146
