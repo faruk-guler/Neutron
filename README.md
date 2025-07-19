@@ -30,7 +30,7 @@ Author: faruk-guler
 ├── config.ntr  # Server information (port, credentials)
 ├── main.sh     # Main tool (bash runs commands)
 ├── sources.ntr # source list(IP/DNS, servers)
-├── task.ntr    # Optional long commands, scripts)
+├── deploy.yaml # Optional long commands, scripts)
 ~~~
 ~~~sh
 # Start SSH Agent and load the Private key into the agent:
