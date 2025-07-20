@@ -1,6 +1,6 @@
 commands:
   - "ls -la /home"
-  - "df -hs"
+  - "df -h"
   - "sudo systemctl status nginx"
   - "sudo apt install neofetch"
 
