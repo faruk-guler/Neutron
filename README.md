@@ -10,7 +10,7 @@ Disables host key verification on SSH connections. This can create a MITM (Man-i
 
 Only for Linux systems. Support for Windows systems has been discontinued.
 
-Only (eval) executes the given expression as a shell string (text).
+(eval) executes the given expression as a shell string (full text). It is therefore very powerful. Use with caution!
 
 Author: faruk-guler
 ## Usage:
