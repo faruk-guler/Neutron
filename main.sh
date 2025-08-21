@@ -242,9 +242,9 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         continue
     fi
 
-    # Handle "put" command (file or directory) - Parallel SCP
-    if [[ "$cmd" =~ ^put ]]; then
-        IFS=' ' read -ra tokens <<< "${cmd#put }"
+    # Handle "push" command (file or directory) - Parallel SCP
+    if [[ "$cmd" =~ ^push ]]; then
+        IFS=' ' read -ra tokens <<< "${cmd#push }"
         local_path="${tokens[0]}"
         remote_path="${tokens[1]:-/tmp}"
 
@@ -279,9 +279,9 @@ while read -e -p "$(echo -e "${GREEN}shell # ${NC}")" -r cmd; do
         continue
     fi
 
-    # Handle "get" command (file or directory)
-    if [[ "$cmd" =~ ^get ]]; then
-        IFS=' ' read -ra tokens <<< "${cmd#get }"
+    # Handle "pull" command (file or directory)
+    if [[ "$cmd" =~ ^pull ]]; then
+        IFS=' ' read -ra tokens <<< "${cmd#pull }"
         remote_path="${tokens[0]}"
         local_dir="${tokens[1]:-./downloads}"
 
