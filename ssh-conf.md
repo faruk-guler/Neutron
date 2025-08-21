@@ -1,5 +1,3 @@
-# (SSH authorized_keys) -farukguler.com
-
 # Create SSH Key
 ```
 ssh-keygen -t ed25519 -f /root/.ssh/neutron.key
