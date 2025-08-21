@@ -22,9 +22,9 @@ Author: faruk-guler
 > 
 > ./main.sh deploy.yaml # coming soon :(
 > 
-> shell # put /local/path/file.txt /remote/path/  # Parallel upload
+> shell # push /local/path/file.txt /remote/path/  # Parallel upload
 > 
-> shell # get /var/log/app.log ./logs/  # Parallel down.
+> shell # pull /var/log/app.log ./logs/  # Parallel down.
 ~~~sh
 # Neutron Structure:
 ├── config.ntr  # Server information (port, credentials)
