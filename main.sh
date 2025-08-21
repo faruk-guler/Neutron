@@ -16,11 +16,11 @@ ${GREEN}# Neutron v10 ${NC}
 # Author: faruk-guler
 
 ${YELLOW}Neutron Usage:${NC}
-${GREEN}cd <directory>${NC}          : Change directory on all remote hosts
-${GREEN}put <local_path> [path]${NC} : Upload file/directory to all remote hosts (parallel)
-${GREEN}get <remote_path> [dir]${NC} : Download file/directory from all remote hosts (parallel)
-${GREEN}<any_shell_cmd>${NC}         : Run shell command on all remote hosts
-${RED}exit${NC}                    : Exit Neutron
+${GREEN}cd <directory>${NC}           : Change directory on all remote hosts
+${GREEN}push <local_path> [path]${NC} : Upload file/directory to all remote hosts (parallel)
+${GREEN}pull <remote_path> [dir]${NC} : Download file/directory from all remote hosts (parallel)
+${GREEN}<any_shell_cmd>${NC}          : Run shell command on all remote hosts
+${RED}exit${NC}                       : Exit Neutron
 ${CYAN}###########################################################${NC}"
 
 # History file
