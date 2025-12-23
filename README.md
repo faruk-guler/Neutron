@@ -1,7 +1,5 @@
-# Neutron
-## Lightweight and Powerful automation tool for Linux/Unix
-## Ansible Alternative Project
-
+# Neutron v10 - Automation Tool
+## Lightweight and Powerful automation tool for Linux/Unix Ansible Alternative Project
 ```mermaid
 flowchart TB
     subgraph Client["🖥️ Neutron Client"]
@@ -52,7 +50,13 @@ Only for Linux systems. Support for Windows systems has been discontinued.
 
 (eval) executes the given expression as a shell string (full text). It is therefore very powerful. Use with caution!
 
-Author: faruk-guler
+```sh
+------------------------------------------------------
+  Neutron v10 - Automation Tool
+  Author: faruk-guler | github.com/faruk-guler
+------------------------------------------------------
+```
+
 ## Usage:
 > chmod 600 config.yaml ~/.ssh/neutron.key
 >
