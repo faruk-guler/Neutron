@@ -54,6 +54,7 @@ Only for Linux systems. Support for Windows systems has been discontinued.
 - Version: 10
 - Author: faruk-guler | github.com/faruk-guler
 - Date: 2025
+- License Apache 2.0
 ## Usage:
 > chmod 600 config.yaml ~/.ssh/neutron.key
 >
