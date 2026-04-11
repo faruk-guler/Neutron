@@ -1,6 +1,0 @@
-commands:
-  - "whoami"
-  - "uptime"
-  - "ls -la /tmp"
-  # - push config.yaml /tmp/config_backup.yaml
-  # - pull /var/log/syslog ./logs/
