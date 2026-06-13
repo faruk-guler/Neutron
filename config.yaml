@@ -1,0 +1,11 @@
+# SSH configuration
+ssh_user: "root"
+private_key_file: "~/.ssh/neutron.key"
+strict_host_key_checking: "no" # Set to "yes" for higher security (prevents MITM)
+
+# Host definitions (format: ip_or_hostname:port)
+hosts:
+  - "192.168.47.23:22"
+  - "192.168.47.25:22"
+  - "devops.example.com:22"
+  - "192.168.47.13:22"
